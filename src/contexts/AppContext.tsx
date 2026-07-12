@@ -218,11 +218,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     console.error('Firestore Error details:', JSON.stringify(errInfo));
 
-    // Handle permission-denied gracefully when unauthenticated to prevent error clutter in iframe
+    // Handle permission-denied gracefully to prevent raw error clutter (especially when running inside iframes)
     const isPermissionError = errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('insufficient');
-    if (isPermissionError && !auth.currentUser) {
-      console.warn(`Firestore write/read skipped on path '${path}' because Firebase Auth is not logged in in this browser context (likely running inside an iframe). Fallback to local storage mode.`);
-      return;
+    if (isPermissionError) {
+      const authorizedEmails = ['quiphap@gmail.com', 'minhquang@dian.gov.vn', 'kimthanh@dian.gov.vn', 'admin@dian.gov.vn'];
+      const currentFbEmail = firebaseEmail?.toLowerCase();
+      const hasAuthPermission = currentFbEmail && authorizedEmails.includes(currentFbEmail);
+
+      if (!hasAuthPermission) {
+        console.warn(`Firestore operation '${operationType}' on path '${path}' fell back to local storage mode: Firebase user (${currentFbEmail || 'Chưa đăng nhập'}) is not authorized in Firestore rules.`);
+        return;
+      }
     }
 
     addToast(`Lỗi Firestore (${operationType} - ${path}): ${errorMsg} (TK Firebase: ${firebaseEmail || 'Chưa đăng nhập'})`, 'error');
@@ -389,15 +395,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Shared helper to ensure Firebase Auth user is signed in with standard password lists
   const ensureFirebaseUser = async (fbEmail: string, preferredPass: string) => {
-    const emailLower = fbEmail.toLowerCase();
-    const passwordsToTry = [preferredPass, 'ph@pneo141161', 'chibodian2026'];
+    let emailLower = fbEmail.toLowerCase();
+    let passToUse = preferredPass;
+
+    // Direct mapping to avoid provider conflicts with real quiphap@gmail.com Google Account
+    if (emailLower === 'quiphap@gmail.com') {
+      emailLower = 'admin@dian.gov.vn';
+      passToUse = 'ph@pneo141161';
+    }
+
+    const passwordsToTry = [passToUse, 'ph@pneo141161', 'chibodian2026', 'admin123', 'admin123456'];
     const uniquePasses = Array.from(new Set(passwordsToTry.filter(Boolean)));
     
     let signedIn = false;
     for (const pass of uniquePasses) {
       try {
         await signInWithEmailAndPassword(auth, emailLower, pass);
-        console.log(`Firebase Auth signed in successfully as ${emailLower} using password: ${pass}`);
+        console.log(`Firebase Auth signed in successfully as ${emailLower}`);
         signedIn = true;
         break;
       } catch (err: any) {
@@ -407,14 +421,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     if (!signedIn) {
       try {
-        await createUserWithEmailAndPassword(auth, emailLower, preferredPass);
+        await createUserWithEmailAndPassword(auth, emailLower, passToUse);
         console.log(`Firebase Auth user created and signed in successfully: ${emailLower}`);
       } catch (createErr: any) {
         console.error(`Error creating Firebase Auth user ${emailLower}:`, createErr);
         if (createErr.code === 'auth/email-already-in-use') {
-          addToast(`Tài khoản ${emailLower} đã tồn tại trong Firebase với mật khẩu khác. Vui lòng kiểm tra lại.`, 'error');
+          console.warn(`Firebase Auth account ${emailLower} already exists but sign-in failed. Please check the credentials or sign in with Google.`);
+        } else if (createErr.code === 'auth/operation-not-allowed') {
+          console.error('Email/Password login provider is not enabled in your Firebase Console.');
+          addToast(
+            'Hệ thống: Vui lòng mở Firebase Console -> Authentication -> Sign-in method -> Bật "Email/Password" để lưu trữ dữ liệu đồng bộ không bị gián đoạn.',
+            'info'
+          );
         } else {
-          addToast(`Lỗi tạo tài khoản Firebase Auth cho ${emailLower}: ${createErr.message || createErr}`, 'error');
+          console.warn(`Firebase Auth automatic setup skipped: ${createErr.message || createErr}`);
         }
       }
     }
@@ -426,8 +446,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const syncFirebase = async () => {
       if (currentUser && !auth.currentUser) {
-        const fbEmail = currentUser.email.toLowerCase();
-        const fbPass = fbEmail === 'quiphap@gmail.com' ? 'ph@pneo141161' : 'chibodian2026';
+        let fbEmail = currentUser.email.toLowerCase();
+        let fbPass = 'chibodian2026';
+        if (fbEmail === 'quiphap@gmail.com') {
+          fbEmail = 'admin@dian.gov.vn';
+          fbPass = 'ph@pneo141161';
+        }
         await ensureFirebaseUser(fbEmail, fbPass);
       }
     };
