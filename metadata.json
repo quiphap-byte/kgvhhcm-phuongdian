@@ -1,0 +1,6 @@
+{
+  "name": "Không gian Văn hóa Hồ Chí Minh số – Phường Dĩ An",
+  "description": "Nền tảng lưu trữ, giới thiệu, hệ thống hóa các tư liệu cuộc đời, sự nghiệp, tư tưởng, đạo đức, phong cách Hồ Chí Minh và trưng bày các mô hình học tập tại phường Dĩ An.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
