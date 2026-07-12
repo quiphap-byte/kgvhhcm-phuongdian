@@ -221,25 +221,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Handle permission-denied gracefully to prevent raw error clutter (especially when running inside iframes)
     const isPermissionError = errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('insufficient');
     if (isPermissionError) {
-      const authorizedEmails = ['quiphap@gmail.com', 'minhquang@dian.gov.vn', 'kimthanh@dian.gov.vn', 'admin@dian.gov.vn'];
-      const currentFbEmail = firebaseEmail?.toLowerCase();
-      const hasAuthPermission = currentFbEmail && authorizedEmails.includes(currentFbEmail);
-
-      if (!hasAuthPermission) {
-        console.warn(`Firestore operation '${operationType}' on path '${path}' fell back to local storage mode: Firebase user (${currentFbEmail || 'Chưa đăng nhập'}) is not authorized in Firestore rules.`);
-        return;
-      }
+      console.warn(`Firestore operation '${operationType}' on path '${path}' fell back to local storage mode: Firebase user (${firebaseEmail || 'Chưa đăng nhập'}) is not authorized in Firestore rules.`);
+      return;
     }
 
-    addToast(`Lỗi Firestore (${operationType} - ${path}): ${errorMsg} (TK Firebase: ${firebaseEmail || 'Chưa đăng nhập'})`, 'error');
+    addToast(`Lỗi Firestore (${operationType} - ${path}): ${errorMsg} (TK: ${firebaseEmail || 'Chưa đăng nhập'})`, 'error');
   };
 
   // --- REAL-TIME FIREBASE SYNC ---
+  const hasWritePermission = (): boolean => {
+    const email = auth.currentUser?.email?.toLowerCase();
+    return !!(email && (email === 'quiphap@gmail.com' || email.endsWith('@dian.gov.vn')));
+  };
+
   useEffect(() => {
     // 1. Categories
     const unsubCategories = onSnapshot(collection(db, 'categories'), async (snapshot) => {
       if (snapshot.empty) {
-        if (auth.currentUser) {
+        if (hasWritePermission()) {
           for (const item of mockCategories) {
             await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `categories/${item.id}`));
           }
@@ -258,7 +257,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Units
     const unsubUnits = onSnapshot(collection(db, 'units'), async (snapshot) => {
       if (snapshot.empty) {
-        if (auth.currentUser) {
+        if (hasWritePermission()) {
           for (const item of mockUnits) {
             await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `units/${item.id}`));
           }
@@ -277,7 +276,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 3. Contents
     const unsubContents = onSnapshot(collection(db, 'contents'), async (snapshot) => {
       if (snapshot.empty) {
-        if (auth.currentUser) {
+        if (hasWritePermission()) {
           for (const item of mockContents) {
             await setDoc(doc(db, 'contents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `contents/${item.id}`));
           }
@@ -297,7 +296,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 4. Media Library
     const unsubMedia = onSnapshot(collection(db, 'mediaLibrary'), async (snapshot) => {
       if (snapshot.empty) {
-        if (auth.currentUser) {
+        if (hasWritePermission()) {
           for (const item of mockMediaLibrary) {
             await setDoc(doc(db, 'mediaLibrary', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `mediaLibrary/${item.id}`));
           }
@@ -317,7 +316,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 5. Settings
     const unsubSettings = onSnapshot(doc(db, 'settings', 'site'), async (docSnap) => {
       if (!docSnap.exists()) {
-        if (auth.currentUser) {
+        if (hasWritePermission()) {
           await setDoc(doc(db, 'settings', 'site'), cleanUndefined(defaultSiteSettings)).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings/site'));
         }
       } else {
@@ -338,8 +337,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- SECURE REAL-TIME FIREBASE SYNC FOR AUDIT LOGS ---
   useEffect(() => {
-    const authorizedEmails = ['quiphap@gmail.com', 'minhquang@dian.gov.vn', 'kimthanh@dian.gov.vn', 'admin@dian.gov.vn'];
-    const isAuthorized = currentUser && currentUser.email && authorizedEmails.includes(currentUser.email.toLowerCase());
+    const isAuthorized = currentUser && currentUser.email && (
+      currentUser.email.toLowerCase() === 'quiphap@gmail.com' ||
+      currentUser.email.toLowerCase().endsWith('@dian.gov.vn')
+    );
 
     if (!authReady || !isAuthorized || !auth.currentUser) {
       setAuditLogs([]);
@@ -377,10 +378,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const matched = mockUsers.find(u => u.email.toLowerCase() === emailLower);
         if (matched) {
           setCurrentUser(matched);
-        } else if (emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn') {
+        } else if (emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn' || emailLower === 'phapadmin@dian.gov.vn') {
           setCurrentUser({
             id: 'usr-admin',
-            fullName: 'admin',
+            fullName: 'Lê Văn Chính',
             email: 'quiphap@gmail.com',
             role: 'Super Admin',
             status: 'Hoạt động',
@@ -399,8 +400,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let passToUse = preferredPass;
 
     // Direct mapping to avoid provider conflicts with real quiphap@gmail.com Google Account
-    if (emailLower === 'quiphap@gmail.com') {
-      emailLower = 'admin@dian.gov.vn';
+    if (emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn' || emailLower === 'phapadmin@dian.gov.vn') {
+      emailLower = 'phapadmin@dian.gov.vn';
       passToUse = 'ph@pneo141161';
     }
 
@@ -448,8 +449,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (currentUser && !auth.currentUser) {
         let fbEmail = currentUser.email.toLowerCase();
         let fbPass = 'chibodian2026';
-        if (fbEmail === 'quiphap@gmail.com') {
-          fbEmail = 'admin@dian.gov.vn';
+        if (fbEmail === 'quiphap@gmail.com' || fbEmail === 'admin@dian.gov.vn' || fbEmail === 'phapadmin@dian.gov.vn') {
+          fbEmail = 'phapadmin@dian.gov.vn';
           fbPass = 'ph@pneo141161';
         }
         await ensureFirebaseUser(fbEmail, fbPass);
@@ -717,12 +718,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addAuditLog('Đăng xuất', 'user', currentUser.id, `Người dùng ${currentUser.fullName} đăng xuất.`);
     }
     setCurrentUser(null);
+    sessionStorage.clear();
+    localStorage.removeItem('kgvh_current_user');
     try {
       await signOut(auth);
     } catch (err) {
       console.error('Lỗi đăng xuất Firebase:', err);
     }
-    addToast('Đã đăng xuất tài khoản', 'info');
+    addToast('Đã đăng xuất tài khoản và xóa sạch bộ nhớ tạm', 'info');
     navigateTo('home');
   };
 
@@ -782,10 +785,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description,
       createdAt: new Date().toISOString()
     };
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setAuditLogs(prev => [newLog, ...prev]);
+
+    if (hasWritePermission()) {
       setDoc(doc(db, 'auditLogs', id), cleanUndefined(newLog)).catch(err => handleFirestoreError(err, OperationType.CREATE, `auditLogs/${id}`));
-    } else {
-      setAuditLogs(prev => [newLog, ...prev]);
     }
   };
 
@@ -799,11 +804,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setContents(prev => [newContent, ...prev]);
+
+    if (hasWritePermission()) {
       setDoc(doc(db, 'contents', id), cleanUndefined(newContent)).catch(err => handleFirestoreError(err, OperationType.CREATE, `contents/${id}`));
-    } else {
-      setContents(prev => [newContent, ...prev]);
     }
+    
     addAuditLog('Tạo bài viết', 'content', id, `Đã tạo bài viết mới: "${newContent.title}"`);
     addToast('Tạo bài viết mới thành công!', 'success');
     return id;
@@ -816,10 +824,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...updatedFields,
       updatedAt: new Date().toISOString()
     };
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setContents(prev => prev.map(c => c.id === id ? { ...c, ...fieldsToUpdate } : c));
+
+    if (hasWritePermission()) {
       updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `contents/${id}`));
-    } else {
-      setContents(prev => prev.map(c => c.id === id ? { ...c, ...fieldsToUpdate } : c));
     }
 
     if (existing) {
@@ -835,11 +845,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteContent = (id: string) => {
     const item = contents.find(c => c.id === id);
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setContents(prev => prev.filter(c => c.id !== id));
+
+    if (hasWritePermission()) {
       deleteDoc(doc(db, 'contents', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `contents/${id}`));
-    } else {
-      setContents(prev => prev.filter(c => c.id !== id));
     }
+    
     addAuditLog('Xóa bài viết', 'content', id, `Đã xóa vĩnh viễn bài viết: "${item?.title || id}"`);
     addToast('Xóa vĩnh viễn tư liệu bài viết thành công!', 'success');
   };
@@ -853,11 +866,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setUnits(prev => [...prev, newUnit]);
+
+    if (hasWritePermission()) {
       setDoc(doc(db, 'units', id), cleanUndefined(newUnit)).catch(err => handleFirestoreError(err, OperationType.CREATE, `units/${id}`));
-    } else {
-      setUnits(prev => [...prev, newUnit]);
     }
+    
     addAuditLog('Tạo đơn vị', 'unit', id, `Đã tạo đơn vị mới: "${newUnit.name}"`);
     addToast('Thêm đơn vị mới thành công!', 'success');
     return id;
@@ -869,21 +885,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...updatedFields,
       updatedAt: new Date().toISOString()
     };
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setUnits(prev => prev.map(u => u.id === id ? { ...u, ...fieldsToUpdate } : u));
+
+    if (hasWritePermission()) {
       updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `units/${id}`));
-    } else {
-      setUnits(prev => prev.map(u => u.id === id ? { ...u, ...fieldsToUpdate } : u));
     }
+    
     addAuditLog('Cập nhật đơn vị', 'unit', id, `Đã cập nhật đơn vị.`);
     addToast('Cập nhật thông tin đơn vị thành công!', 'success');
   };
 
   const deleteUnit = (id: string) => {
-    if (auth.currentUser) {
+    // Optimistic local update
+    setUnits(prev => prev.filter(u => u.id !== id));
+
+    if (hasWritePermission()) {
       deleteDoc(doc(db, 'units', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `units/${id}`));
-    } else {
-      setUnits(prev => prev.filter(u => u.id !== id));
     }
+    
     addAuditLog('Xóa đơn vị', 'unit', id, `Đã xóa đơn vị có mã ${id}`);
     addToast('Đã xóa đơn vị khỏi hệ thống', 'info');
   };
@@ -895,11 +916,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...categoryData,
       id
     };
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setCategories(prev => [...prev, newCategory]);
+
+    if (hasWritePermission()) {
       setDoc(doc(db, 'categories', id), cleanUndefined(newCategory)).catch(err => handleFirestoreError(err, OperationType.CREATE, `categories/${id}`));
-    } else {
-      setCategories(prev => [...prev, newCategory]);
     }
+    
     addAuditLog('Tạo danh mục', 'category', id, `Đã tạo danh mục mới: "${newCategory.name}"`);
     addToast('Thêm danh mục mới thành công!', 'success');
     return id;
@@ -907,21 +931,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateCategory = (id: string, updatedFields: Partial<Category>) => {
     const docRef = doc(db, 'categories', id);
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
+
+    if (hasWritePermission()) {
       updateDoc(docRef, cleanUndefined(updatedFields)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `categories/${id}`));
-    } else {
-      setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
     }
+    
     addAuditLog('Cập nhật danh mục', 'category', id, `Đã cập nhật danh mục.`);
     addToast('Cập nhật danh mục thành công!', 'success');
   };
 
   const deleteCategory = (id: string) => {
-    if (auth.currentUser) {
+    // Optimistic local update
+    setCategories(prev => prev.filter(c => c.id !== id));
+
+    if (hasWritePermission()) {
       deleteDoc(doc(db, 'categories', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `categories/${id}`));
-    } else {
-      setCategories(prev => prev.filter(c => c.id !== id));
     }
+    
     addAuditLog('Xóa danh mục', 'category', id, `Đã xóa danh mục mã ${id}`);
     addToast('Đã xóa danh mục', 'info');
   };
@@ -934,33 +963,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       createdAt: new Date().toISOString()
     };
-    if (auth.currentUser) {
+    
+    // Optimistic local update
+    setMediaLibrary(prev => [newItem, ...prev]);
+
+    if (hasWritePermission()) {
       setDoc(doc(db, 'mediaLibrary', id), cleanUndefined(newItem)).catch(err => handleFirestoreError(err, OperationType.CREATE, `mediaLibrary/${id}`));
-    } else {
-      setMediaLibrary(prev => [newItem, ...prev]);
     }
+    
     addAuditLog('Tải lên media', 'content', id, `Tải lên file: ${mediaData.fileName}`);
     addToast('Tải lên tệp đa phương tiện thành công!', 'success');
     return id;
   };
 
   const deleteMediaItem = (id: string) => {
-    if (auth.currentUser) {
+    // Optimistic local update
+    setMediaLibrary(prev => prev.filter(m => m.id !== id));
+
+    if (hasWritePermission()) {
       deleteDoc(doc(db, 'mediaLibrary', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `mediaLibrary/${id}`));
-    } else {
-      setMediaLibrary(prev => prev.filter(m => m.id !== id));
     }
+    
     addAuditLog('Xóa media', 'content', id, `Đã xóa tệp media mã ${id}`);
     addToast('Đã xóa tệp đa phương tiện', 'info');
   };
 
   // --- SAVE SYSTEM SETTINGS ---
   const saveSettings = (updatedSettings: SiteSettings) => {
-    if (auth.currentUser) {
+    // Optimistic local update
+    setSettings(updatedSettings);
+
+    if (hasWritePermission()) {
       setDoc(doc(db, 'settings', 'site'), cleanUndefined(updatedSettings)).catch(err => handleFirestoreError(err, OperationType.UPDATE, 'settings/site'));
-    } else {
-      setSettings(updatedSettings);
     }
+    
     addAuditLog('Cập nhật hệ thống', 'settings', 'settings', 'Thay đổi cấu hình giao diện và thông tin liên hệ của Phường.');
     addToast('Cập nhật cấu hình hệ thống thành công!', 'success');
   };

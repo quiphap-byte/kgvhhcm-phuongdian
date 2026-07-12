@@ -20,9 +20,7 @@ service cloud.firestore {
       return isSignedIn() && 
         ('email' in request.auth.token) && (
           request.auth.token.email.lower() == 'quiphap@gmail.com' ||
-          request.auth.token.email.lower() == 'minhquang@dian.gov.vn' ||
-          request.auth.token.email.lower() == 'kimthanh@dian.gov.vn' ||
-          request.auth.token.email.lower() == 'admin@dian.gov.vn'
+          request.auth.token.email.lower().endsWith('@dian.gov.vn')
         );
     }
 
