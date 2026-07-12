@@ -942,7 +942,7 @@ export const mockUsers: User[] = [
   {
     id: 'usr-admin',
     fullName: 'admin',
-    email: 'quiphap@gmail.com',
+    email: 'admin@dian.gov.vn',
     role: 'Super Admin',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
     status: 'Hoạt động',

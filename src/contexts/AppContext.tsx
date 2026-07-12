@@ -25,7 +25,8 @@ import {
   signOut, 
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  deleteUser
 } from 'firebase/auth';
 
 interface AppContextType {
@@ -376,6 +377,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [currentUser, authReady]);
 
+  // One-time cleanup for old duplicate admin accounts on Firebase Auth
+  const cleanupOldAdminAccounts = async () => {
+    const isCleaned = localStorage.getItem('kgvh_admin_cleaned_v4');
+    if (isCleaned) return;
+
+    console.log('Starting cleanup of duplicate admin accounts from Firebase Auth...');
+    const extraCandidates = [
+      'phapadmin@dian.gov.vn',
+      'admin_chinh@dian.gov.vn',
+      'quantri@dian.gov.vn',
+      'quiphap_admin@dian.gov.vn'
+    ];
+
+    const passwordsToTry = ['ph@pneo141161', 'chibodian2026', 'admin123', 'admin123456'];
+
+    for (const email of extraCandidates) {
+      for (const pass of passwordsToTry) {
+        try {
+          const userCred = await signInWithEmailAndPassword(auth, email, pass);
+          if (userCred.user) {
+            console.log(`Signed in to duplicate admin: ${email}. Deleting...`);
+            await deleteUser(userCred.user);
+            console.log(`Deleted duplicate admin account from Firebase: ${email}`);
+            break; // Break the password loop for this email
+          }
+        } catch (err: any) {
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+            break;
+          }
+        }
+      }
+    }
+
+    localStorage.setItem('kgvh_admin_cleaned_v4', 'true');
+    console.log('Admin account cleanup complete.');
+  };
+
+  useEffect(() => {
+    cleanupOldAdminAccounts();
+  }, []);
+
   // Synchronize Firebase Auth state with our app state for secure operations
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -398,7 +440,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setCurrentUser({
             id: 'usr-admin',
             fullName: 'Lê Văn Chính',
-            email: 'quiphap@gmail.com',
+            email: 'admin@dian.gov.vn',
             role: 'Super Admin',
             status: 'Hoạt động',
             createdAt: new Date().toISOString(),
@@ -418,62 +460,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isAdminEmail = emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn' || emailLower === 'phapadmin@dian.gov.vn';
 
     if (isAdminEmail) {
-      const adminCandidates = [
-        'quiphap@gmail.com',
-        'phapadmin@dian.gov.vn',
-        'admin@dian.gov.vn',
-        'admin_chinh@dian.gov.vn',
-        'quantri@dian.gov.vn',
-        'quiphap_admin@dian.gov.vn'
-      ];
+      emailLower = 'admin@dian.gov.vn';
       passToUse = 'ph@pneo141161';
-
-      let signedIn = false;
-      for (const email of adminCandidates) {
-        console.log(`Trying to authenticate as admin candidate: ${email}`);
-        
-        const passwordsToTry = [passToUse, 'chibodian2026', 'admin123', 'admin123456'];
-        const uniquePasses = Array.from(new Set(passwordsToTry.filter(Boolean)));
-        
-        for (const pass of uniquePasses) {
-          try {
-            await signInWithEmailAndPassword(auth, email, pass);
-            console.log(`Firebase Auth signed in successfully as admin candidate: ${email}`);
-            signedIn = true;
-            break;
-          } catch (err: any) {
-            console.warn(`Sign-in attempt failed for admin candidate ${email} with password '${pass}':`, err.code || err.message);
-          }
-        }
-
-        if (signedIn) {
-          break;
-        }
-
-        // Try creating this candidate user since sign-in didn't succeed (not found, or wrong password but we want a fresh registration)
-        try {
-          await createUserWithEmailAndPassword(auth, email, passToUse);
-          console.log(`Firebase Auth admin user created successfully: ${email}`);
-          signedIn = true;
-          break;
-        } catch (createErr: any) {
-          console.error(`Error creating admin candidate ${email}:`, createErr.code || createErr.message);
-          if (createErr.code === 'auth/email-already-in-use') {
-            console.warn(`Admin candidate ${email} already in use with a different password. Moving to next candidate.`);
-          } else if (createErr.code === 'auth/operation-not-allowed') {
-            addToast(
-              'Hệ thống: Vui lòng mở Firebase Console -> Authentication -> Sign-in method -> Bật "Email/Password" để lưu trữ dữ liệu đồng bộ không bị gián đoạn.',
-              'info'
-            );
-            break;
-          }
-        }
-      }
-
-      if (!signedIn) {
-        addToast('Lỗi: Không thể kết nối hoặc khởi tạo tài khoản Quản trị viên trên Firebase Auth. Vui lòng kiểm tra lại cấu hình dự án Firebase của bạn.', 'error');
-      }
-      return;
     }
 
     const passwordsToTry = [passToUse, 'chibodian2026', 'admin123', 'admin123456'];
@@ -483,7 +471,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     for (const pass of uniquePasses) {
       try {
         await signInWithEmailAndPassword(auth, emailLower, pass);
-        console.log(`Firebase Auth signed in successfully as ${emailLower}`);
+        console.log(`Firebase Auth signed in successfully as: ${emailLower}`);
         signedIn = true;
         break;
       } catch (err: any) {
@@ -520,7 +508,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         let fbEmail = currentUser.email.toLowerCase();
         let fbPass = 'chibodian2026';
         if (fbEmail === 'quiphap@gmail.com' || fbEmail === 'admin@dian.gov.vn' || fbEmail === 'phapadmin@dian.gov.vn') {
-          fbEmail = 'phapadmin@dian.gov.vn';
+          fbEmail = 'admin@dian.gov.vn';
           fbPass = 'ph@pneo141161';
         }
         await ensureFirebaseUser(fbEmail, fbPass);
@@ -672,11 +660,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const inputPass = (role as string || '').trim();
 
     // 1. Check for admin/ph@pneo141161 credentials or system user email
-    if ((inputUser === 'admin' && inputPass === 'ph@pneo141161') || inputUser === 'quiphap@gmail.com') {
-      const adminUser = users.find(u => u.email === 'quiphap@gmail.com') || users[0];
+    if ((inputUser === 'admin' && inputPass === 'ph@pneo141161') || inputUser === 'quiphap@gmail.com' || inputUser === 'admin@dian.gov.vn') {
+      const adminUser = users.find(u => u.email === 'admin@dian.gov.vn') || users[0];
       if (adminUser) {
-        // Sign in as quiphap@gmail.com directly so they are correctly identified in Firestore
-        await ensureFirebaseUser('quiphap@gmail.com', 'ph@pneo141161');
+        // Sign in as admin@dian.gov.vn directly so they are correctly identified in Firestore
+        await ensureFirebaseUser('admin@dian.gov.vn', 'ph@pneo141161');
 
         setCurrentUser(adminUser);
         addToast(`Chào mừng ${adminUser.fullName} đăng nhập thành công!`, 'success');
@@ -702,7 +690,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const matchedUser = users.find(u => u.email.toLowerCase() === inputUser);
     if (matchedUser) {
       // Map appropriate default password
-      const fbPass = matchedUser.email === 'quiphap@gmail.com' ? 'ph@pneo141161' : 'chibodian2026';
+      const fbPass = (matchedUser.email === 'quiphap@gmail.com' || matchedUser.email === 'admin@dian.gov.vn') ? 'ph@pneo141161' : 'chibodian2026';
       await ensureFirebaseUser(matchedUser.email, fbPass);
 
       setCurrentUser(matchedUser);
