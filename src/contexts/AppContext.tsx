@@ -219,7 +219,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     console.error('Firestore Error details:', JSON.stringify(errInfo));
 
     // Handle permission-denied gracefully to prevent raw error clutter (especially when running inside iframes)
-    const isPermissionError = errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('insufficient');
+    const errorLower = errorMsg.toLowerCase();
+    const isPermissionError = 
+      errorLower.includes('permission') || 
+      errorLower.includes('insufficient') || 
+      errorLower.includes('denied') || 
+      errorLower.includes('unauthorized') ||
+      ((error as any)?.code && (error as any).code.toString().includes('permission-denied'));
+
     if (isPermissionError) {
       console.warn(`Firestore operation '${operationType}' on path '${path}' fell back to local storage mode: Firebase user (${firebaseEmail || 'Chưa đăng nhập'}) is not authorized in Firestore rules.`);
       return;
@@ -412,6 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (isAdminEmail) {
       const adminCandidates = [
+        'quiphap@gmail.com',
         'phapadmin@dian.gov.vn',
         'admin@dian.gov.vn',
         'admin_chinh@dian.gov.vn',
