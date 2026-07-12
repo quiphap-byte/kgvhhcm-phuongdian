@@ -368,6 +368,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => unsubscribe();
   }, []);
 
+  // Shared helper to ensure Firebase Auth user is signed in with standard password lists
+  const ensureFirebaseUser = async (fbEmail: string, preferredPass: string) => {
+    const emailLower = fbEmail.toLowerCase();
+    const passwordsToTry = [preferredPass, 'ph@pneo141161', 'chibodian2026'];
+    const uniquePasses = Array.from(new Set(passwordsToTry.filter(Boolean)));
+    
+    let signedIn = false;
+    for (const pass of uniquePasses) {
+      try {
+        await signInWithEmailAndPassword(auth, emailLower, pass);
+        console.log(`Firebase Auth signed in successfully as ${emailLower} using password: ${pass}`);
+        signedIn = true;
+        break;
+      } catch (err: any) {
+        console.warn(`Sign-in attempt failed for ${emailLower} with password '${pass}':`, err.code || err.message);
+      }
+    }
+    
+    if (!signedIn) {
+      try {
+        await createUserWithEmailAndPassword(auth, emailLower, preferredPass);
+        console.log(`Firebase Auth user created and signed in successfully: ${emailLower}`);
+      } catch (createErr: any) {
+        console.error(`Error creating Firebase Auth user ${emailLower}:`, createErr);
+        if (createErr.code === 'auth/email-already-in-use') {
+          addToast(`Tài khoản ${emailLower} đã tồn tại trong Firebase với mật khẩu khác. Vui lòng kiểm tra lại.`, 'error');
+        } else {
+          addToast(`Lỗi tạo tài khoản Firebase Auth cho ${emailLower}: ${createErr.message || createErr}`, 'error');
+        }
+      }
+    }
+  };
+
   // Ensure Firebase Auth is signed in when currentUser is set and auth is ready
   useEffect(() => {
     if (!authReady) return;
@@ -376,21 +409,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (currentUser && !auth.currentUser) {
         const fbEmail = currentUser.email.toLowerCase();
         const fbPass = fbEmail === 'quiphap@gmail.com' ? 'ph@pneo141161' : 'chibodian2026';
-        try {
-          await signInWithEmailAndPassword(auth, fbEmail, fbPass);
-          console.log('Auto sync: Firebase Auth signed in successfully as:', fbEmail);
-        } catch (err: any) {
-          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
-            try {
-              await createUserWithEmailAndPassword(auth, fbEmail, fbPass);
-              console.log('Auto sync: Firebase Auth created and signed in:', fbEmail);
-            } catch (createErr) {
-              console.error('Auto sync: Error creating Firebase Auth user:', fbEmail, createErr);
-            }
-          } else {
-            console.error('Auto sync: Firebase Auth signin error:', fbEmail, err);
-          }
-        }
+        await ensureFirebaseUser(fbEmail, fbPass);
       }
     };
 
@@ -537,25 +556,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Normalization / Demo mappings
     const inputUser = email.trim().toLowerCase();
     const inputPass = (role as string || '').trim();
-
-    // Helper to ensure Firebase user exists and is signed in
-    const ensureFirebaseUser = async (fbEmail: string, fbPass: string) => {
-      try {
-        await signInWithEmailAndPassword(auth, fbEmail, fbPass);
-        console.log('Firebase Auth signed in successfully as:', fbEmail);
-      } catch (err: any) {
-        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
-          try {
-            await createUserWithEmailAndPassword(auth, fbEmail, fbPass);
-            console.log('Firebase Auth created and signed in:', fbEmail);
-          } catch (createErr) {
-            console.error('Error creating Firebase Auth user:', fbEmail, createErr);
-          }
-        } else {
-          console.error('Firebase Auth signin error:', fbEmail, err);
-        }
-      }
-    };
 
     // 1. Check for admin/ph@pneo141161 credentials or system user email
     if ((inputUser === 'admin' && inputPass === 'ph@pneo141161') || inputUser === 'quiphap@gmail.com') {

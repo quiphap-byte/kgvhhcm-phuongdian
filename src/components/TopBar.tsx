@@ -19,6 +19,11 @@ export const TopBar: React.FC = () => {
   } = useApp();
 
   const [timeStr, setTimeStr] = useState('');
+  const [isIframe, setIsIframe] = useState(false);
+
+  useEffect(() => {
+    setIsIframe(window.self !== window.top);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -41,7 +46,26 @@ export const TopBar: React.FC = () => {
   }, []);
 
   return (
-    <div id="top-bar" className="bg-[#8B0000] text-white text-xs py-2 px-6 flex flex-col md:flex-row justify-between items-center gap-2 border-b-2 border-[#D4AF37]">
+    <>
+      {isIframe && (
+        <div id="iframe-warning-banner" className="bg-[#FF9800] text-neutral-900 text-[11px] md:text-xs py-2 px-6 flex flex-col sm:flex-row justify-between items-center font-bold border-b border-amber-600 gap-2 animate-pulse">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>
+              Bạn đang chạy trong khung thử nghiệm (iframe). Trình duyệt chặn các tính năng đăng nhập Google & đồng bộ dữ liệu. Vui lòng mở bằng tab mới để sử dụng mượt mà không lỗi.
+            </span>
+          </div>
+          <a 
+            href={window.location.href} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1 rounded text-[10px] uppercase font-black tracking-wider shadow transition-all whitespace-nowrap"
+          >
+            Mở tab mới ↗
+          </a>
+        </div>
+      )}
+      <div id="top-bar" className="bg-[#8B0000] text-white text-xs py-2 px-6 flex flex-col md:flex-row justify-between items-center gap-2 border-b-2 border-[#D4AF37]">
       {/* Date and Time */}
       <div className="flex items-center gap-2 text-white/90 font-medium">
         <Calendar size={13} className="text-[#FBBF24]" />
@@ -123,5 +147,6 @@ export const TopBar: React.FC = () => {
         )}
       </div>
     </div>
+  </>
   );
 };
