@@ -20,16 +20,16 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == 'usr-admin' ||
         ('email' in request.auth.token && (
-          request.auth.token.email == 'quiphap@gmail.com' ||
-          request.auth.token.email == 'minhquang@dian.gov.vn' ||
-          request.auth.token.email == 'kimthanh@dian.gov.vn' ||
-          request.auth.token.email == 'admin@dian.gov.vn'
+          request.auth.token.email.matches('(?i)^quiphap@gmail\\.com$') ||
+          request.auth.token.email.matches('(?i)^minhquang@dian\\.gov\\.vn$') ||
+          request.auth.token.email.matches('(?i)^kimthanh@dian\\.gov\\.vn$') ||
+          request.auth.token.email.matches('(?i)^admin@dian\\.gov\\.vn$')
         ))
       );
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128;
+      return id != null;
     }
 
     // 2. Categories (Danh mục) - Công khai đọc, ghi chỉ dành cho Biên tập viên được cấp quyền
