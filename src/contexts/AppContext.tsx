@@ -203,8 +203,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
     const firebaseEmail = auth.currentUser?.email || null;
     const firebaseUid = auth.currentUser?.uid || null;
+    const errorMsg = error instanceof Error ? error.message : String(error);
     const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
       authInfo: {
         localUserEmail: currentUser?.email || null,
         localUserRole: currentUser?.role || null,
@@ -216,7 +217,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       path
     };
     console.error('Firestore Error details:', JSON.stringify(errInfo));
-    addToast(`Lỗi Firestore (${operationType} - ${path}): ${error instanceof Error ? error.message : String(error)} (TK Firebase: ${firebaseEmail || 'Chưa đăng nhập'})`, 'error');
+
+    // Handle permission-denied gracefully when unauthenticated to prevent error clutter in iframe
+    const isPermissionError = errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('insufficient');
+    if (isPermissionError && !auth.currentUser) {
+      console.warn(`Firestore write/read skipped on path '${path}' because Firebase Auth is not logged in in this browser context (likely running inside an iframe). Fallback to local storage mode.`);
+      return;
+    }
+
+    addToast(`Lỗi Firestore (${operationType} - ${path}): ${errorMsg} (TK Firebase: ${firebaseEmail || 'Chưa đăng nhập'})`, 'error');
   };
 
   // --- REAL-TIME FIREBASE SYNC ---
@@ -224,8 +233,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. Categories
     const unsubCategories = onSnapshot(collection(db, 'categories'), async (snapshot) => {
       if (snapshot.empty) {
-        for (const item of mockCategories) {
-          await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `categories/${item.id}`));
+        if (auth.currentUser) {
+          for (const item of mockCategories) {
+            await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `categories/${item.id}`));
+          }
         }
       } else {
         const list: Category[] = [];
@@ -241,8 +252,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Units
     const unsubUnits = onSnapshot(collection(db, 'units'), async (snapshot) => {
       if (snapshot.empty) {
-        for (const item of mockUnits) {
-          await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `units/${item.id}`));
+        if (auth.currentUser) {
+          for (const item of mockUnits) {
+            await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `units/${item.id}`));
+          }
         }
       } else {
         const list: Unit[] = [];
@@ -258,8 +271,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 3. Contents
     const unsubContents = onSnapshot(collection(db, 'contents'), async (snapshot) => {
       if (snapshot.empty) {
-        for (const item of mockContents) {
-          await setDoc(doc(db, 'contents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `contents/${item.id}`));
+        if (auth.currentUser) {
+          for (const item of mockContents) {
+            await setDoc(doc(db, 'contents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `contents/${item.id}`));
+          }
         }
       } else {
         const list: Content[] = [];
@@ -276,8 +291,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 4. Media Library
     const unsubMedia = onSnapshot(collection(db, 'mediaLibrary'), async (snapshot) => {
       if (snapshot.empty) {
-        for (const item of mockMediaLibrary) {
-          await setDoc(doc(db, 'mediaLibrary', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `mediaLibrary/${item.id}`));
+        if (auth.currentUser) {
+          for (const item of mockMediaLibrary) {
+            await setDoc(doc(db, 'mediaLibrary', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `mediaLibrary/${item.id}`));
+          }
         }
       } else {
         const list: MediaItem[] = [];
@@ -294,7 +311,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 5. Settings
     const unsubSettings = onSnapshot(doc(db, 'settings', 'site'), async (docSnap) => {
       if (!docSnap.exists()) {
-        await setDoc(doc(db, 'settings', 'site'), cleanUndefined(defaultSiteSettings)).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings/site'));
+        if (auth.currentUser) {
+          await setDoc(doc(db, 'settings', 'site'), cleanUndefined(defaultSiteSettings)).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings/site'));
+        }
       } else {
         setSettings(docSnap.data() as SiteSettings);
       }
@@ -659,7 +678,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     } catch (err: any) {
       console.error('Google Auth Error:', err);
-      addToast(`Lỗi đăng nhập Google: ${err.message || String(err)}`, 'error');
+      const isIframe = window.self !== window.top;
+      if (isIframe) {
+        addToast('Lỗi đăng nhập Google: Trình duyệt chặn mở cửa sổ đăng nhập trong iframe. Hãy bấm nút "MỞ TAB MỚI" màu cam ở trên cùng để đăng nhập Google thành công!', 'error');
+      } else {
+        addToast(`Lỗi đăng nhập Google: ${err.message || String(err)}`, 'error');
+      }
       return false;
     }
   };
@@ -734,7 +758,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description,
       createdAt: new Date().toISOString()
     };
-    setDoc(doc(db, 'auditLogs', id), cleanUndefined(newLog)).catch(err => handleFirestoreError(err, OperationType.CREATE, `auditLogs/${id}`));
+    if (auth.currentUser) {
+      setDoc(doc(db, 'auditLogs', id), cleanUndefined(newLog)).catch(err => handleFirestoreError(err, OperationType.CREATE, `auditLogs/${id}`));
+    } else {
+      setAuditLogs(prev => [newLog, ...prev]);
+    }
   };
 
   // --- CRUD FUNCTIONS FOR CONTENT ---
@@ -747,7 +775,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    setDoc(doc(db, 'contents', id), cleanUndefined(newContent)).catch(err => handleFirestoreError(err, OperationType.CREATE, `contents/${id}`));
+    if (auth.currentUser) {
+      setDoc(doc(db, 'contents', id), cleanUndefined(newContent)).catch(err => handleFirestoreError(err, OperationType.CREATE, `contents/${id}`));
+    } else {
+      setContents(prev => [newContent, ...prev]);
+    }
     addAuditLog('Tạo bài viết', 'content', id, `Đã tạo bài viết mới: "${newContent.title}"`);
     addToast('Tạo bài viết mới thành công!', 'success');
     return id;
@@ -760,7 +792,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...updatedFields,
       updatedAt: new Date().toISOString()
     };
-    updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `contents/${id}`));
+    if (auth.currentUser) {
+      updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `contents/${id}`));
+    } else {
+      setContents(prev => prev.map(c => c.id === id ? { ...c, ...fieldsToUpdate } : c));
+    }
 
     if (existing) {
       addAuditLog(
@@ -775,7 +811,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteContent = (id: string) => {
     const item = contents.find(c => c.id === id);
-    deleteDoc(doc(db, 'contents', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `contents/${id}`));
+    if (auth.currentUser) {
+      deleteDoc(doc(db, 'contents', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `contents/${id}`));
+    } else {
+      setContents(prev => prev.filter(c => c.id !== id));
+    }
     addAuditLog('Xóa bài viết', 'content', id, `Đã xóa vĩnh viễn bài viết: "${item?.title || id}"`);
     addToast('Xóa vĩnh viễn tư liệu bài viết thành công!', 'success');
   };
@@ -789,7 +829,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    setDoc(doc(db, 'units', id), cleanUndefined(newUnit)).catch(err => handleFirestoreError(err, OperationType.CREATE, `units/${id}`));
+    if (auth.currentUser) {
+      setDoc(doc(db, 'units', id), cleanUndefined(newUnit)).catch(err => handleFirestoreError(err, OperationType.CREATE, `units/${id}`));
+    } else {
+      setUnits(prev => [...prev, newUnit]);
+    }
     addAuditLog('Tạo đơn vị', 'unit', id, `Đã tạo đơn vị mới: "${newUnit.name}"`);
     addToast('Thêm đơn vị mới thành công!', 'success');
     return id;
@@ -801,13 +845,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...updatedFields,
       updatedAt: new Date().toISOString()
     };
-    updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `units/${id}`));
+    if (auth.currentUser) {
+      updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `units/${id}`));
+    } else {
+      setUnits(prev => prev.map(u => u.id === id ? { ...u, ...fieldsToUpdate } : u));
+    }
     addAuditLog('Cập nhật đơn vị', 'unit', id, `Đã cập nhật đơn vị.`);
     addToast('Cập nhật thông tin đơn vị thành công!', 'success');
   };
 
   const deleteUnit = (id: string) => {
-    deleteDoc(doc(db, 'units', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `units/${id}`));
+    if (auth.currentUser) {
+      deleteDoc(doc(db, 'units', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `units/${id}`));
+    } else {
+      setUnits(prev => prev.filter(u => u.id !== id));
+    }
     addAuditLog('Xóa đơn vị', 'unit', id, `Đã xóa đơn vị có mã ${id}`);
     addToast('Đã xóa đơn vị khỏi hệ thống', 'info');
   };
@@ -819,7 +871,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...categoryData,
       id
     };
-    setDoc(doc(db, 'categories', id), cleanUndefined(newCategory)).catch(err => handleFirestoreError(err, OperationType.CREATE, `categories/${id}`));
+    if (auth.currentUser) {
+      setDoc(doc(db, 'categories', id), cleanUndefined(newCategory)).catch(err => handleFirestoreError(err, OperationType.CREATE, `categories/${id}`));
+    } else {
+      setCategories(prev => [...prev, newCategory]);
+    }
     addAuditLog('Tạo danh mục', 'category', id, `Đã tạo danh mục mới: "${newCategory.name}"`);
     addToast('Thêm danh mục mới thành công!', 'success');
     return id;
@@ -827,13 +883,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateCategory = (id: string, updatedFields: Partial<Category>) => {
     const docRef = doc(db, 'categories', id);
-    updateDoc(docRef, cleanUndefined(updatedFields)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `categories/${id}`));
+    if (auth.currentUser) {
+      updateDoc(docRef, cleanUndefined(updatedFields)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `categories/${id}`));
+    } else {
+      setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
+    }
     addAuditLog('Cập nhật danh mục', 'category', id, `Đã cập nhật danh mục.`);
     addToast('Cập nhật danh mục thành công!', 'success');
   };
 
   const deleteCategory = (id: string) => {
-    deleteDoc(doc(db, 'categories', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `categories/${id}`));
+    if (auth.currentUser) {
+      deleteDoc(doc(db, 'categories', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `categories/${id}`));
+    } else {
+      setCategories(prev => prev.filter(c => c.id !== id));
+    }
     addAuditLog('Xóa danh mục', 'category', id, `Đã xóa danh mục mã ${id}`);
     addToast('Đã xóa danh mục', 'info');
   };
@@ -846,21 +910,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       createdAt: new Date().toISOString()
     };
-    setDoc(doc(db, 'mediaLibrary', id), cleanUndefined(newItem)).catch(err => handleFirestoreError(err, OperationType.CREATE, `mediaLibrary/${id}`));
+    if (auth.currentUser) {
+      setDoc(doc(db, 'mediaLibrary', id), cleanUndefined(newItem)).catch(err => handleFirestoreError(err, OperationType.CREATE, `mediaLibrary/${id}`));
+    } else {
+      setMediaLibrary(prev => [newItem, ...prev]);
+    }
     addAuditLog('Tải lên media', 'content', id, `Tải lên file: ${mediaData.fileName}`);
     addToast('Tải lên tệp đa phương tiện thành công!', 'success');
     return id;
   };
 
   const deleteMediaItem = (id: string) => {
-    deleteDoc(doc(db, 'mediaLibrary', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `mediaLibrary/${id}`));
+    if (auth.currentUser) {
+      deleteDoc(doc(db, 'mediaLibrary', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `mediaLibrary/${id}`));
+    } else {
+      setMediaLibrary(prev => prev.filter(m => m.id !== id));
+    }
     addAuditLog('Xóa media', 'content', id, `Đã xóa tệp media mã ${id}`);
     addToast('Đã xóa tệp đa phương tiện', 'info');
   };
 
   // --- SAVE SYSTEM SETTINGS ---
   const saveSettings = (updatedSettings: SiteSettings) => {
-    setDoc(doc(db, 'settings', 'site'), cleanUndefined(updatedSettings)).catch(err => handleFirestoreError(err, OperationType.UPDATE, 'settings/site'));
+    if (auth.currentUser) {
+      setDoc(doc(db, 'settings', 'site'), cleanUndefined(updatedSettings)).catch(err => handleFirestoreError(err, OperationType.UPDATE, 'settings/site'));
+    } else {
+      setSettings(updatedSettings);
+    }
     addAuditLog('Cập nhật hệ thống', 'settings', 'settings', 'Thay đổi cấu hình giao diện và thông tin liên hệ của Phường.');
     addToast('Cập nhật cấu hình hệ thống thành công!', 'success');
   };
