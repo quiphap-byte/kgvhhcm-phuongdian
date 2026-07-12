@@ -201,19 +201,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
-    const errInfo: FirestoreErrorInfo = {
+    const firebaseEmail = auth.currentUser?.email || null;
+    const firebaseUid = auth.currentUser?.uid || null;
+    const errInfo = {
       error: error instanceof Error ? error.message : String(error),
       authInfo: {
-        userId: currentUser?.id || null,
-        email: currentUser?.email || null,
-        emailVerified: true,
-        isAnonymous: !currentUser,
+        localUserEmail: currentUser?.email || null,
+        localUserRole: currentUser?.role || null,
+        firebaseUserEmail: firebaseEmail,
+        firebaseUserUid: firebaseUid,
+        isFirebaseSignedIn: !!auth.currentUser,
       },
       operationType,
       path
     };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    addToast(`Lỗi Firestore (${operationType} - ${path}): ${error instanceof Error ? error.message : String(error)}`, 'error');
+    console.error('Firestore Error details:', JSON.stringify(errInfo));
+    addToast(`Lỗi Firestore (${operationType} - ${path}): ${error instanceof Error ? error.message : String(error)} (TK Firebase: ${firebaseEmail || 'Chưa đăng nhập'})`, 'error');
   };
 
   // --- REAL-TIME FIREBASE SYNC ---
@@ -365,6 +368,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => unsubscribe();
   }, []);
 
+  // Ensure Firebase Auth is signed in when currentUser is set and auth is ready
+  useEffect(() => {
+    if (!authReady) return;
+
+    const syncFirebase = async () => {
+      if (currentUser && !auth.currentUser) {
+        const fbEmail = currentUser.email.toLowerCase();
+        const fbPass = fbEmail === 'quiphap@gmail.com' ? 'ph@pneo141161' : 'chibodian2026';
+        try {
+          await signInWithEmailAndPassword(auth, fbEmail, fbPass);
+          console.log('Auto sync: Firebase Auth signed in successfully as:', fbEmail);
+        } catch (err: any) {
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
+            try {
+              await createUserWithEmailAndPassword(auth, fbEmail, fbPass);
+              console.log('Auto sync: Firebase Auth created and signed in:', fbEmail);
+            } catch (createErr) {
+              console.error('Auto sync: Error creating Firebase Auth user:', fbEmail, createErr);
+            }
+          } else {
+            console.error('Auto sync: Firebase Auth signin error:', fbEmail, err);
+          }
+        }
+      }
+    };
+
+    syncFirebase();
+  }, [currentUser, authReady]);
+
   // --- NAVIGATION SYSTEM ---
   const [currentPath, setCurrentPath] = useState<string>('home');
   const [historyList, setHistoryList] = useState<string[]>(['home']);
@@ -506,24 +538,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const inputUser = email.trim().toLowerCase();
     const inputPass = (role as string || '').trim();
 
+    // Helper to ensure Firebase user exists and is signed in
+    const ensureFirebaseUser = async (fbEmail: string, fbPass: string) => {
+      try {
+        await signInWithEmailAndPassword(auth, fbEmail, fbPass);
+        console.log('Firebase Auth signed in successfully as:', fbEmail);
+      } catch (err: any) {
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-email') {
+          try {
+            await createUserWithEmailAndPassword(auth, fbEmail, fbPass);
+            console.log('Firebase Auth created and signed in:', fbEmail);
+          } catch (createErr) {
+            console.error('Error creating Firebase Auth user:', fbEmail, createErr);
+          }
+        } else {
+          console.error('Firebase Auth signin error:', fbEmail, err);
+        }
+      }
+    };
+
     // 1. Check for admin/ph@pneo141161 credentials or system user email
     if ((inputUser === 'admin' && inputPass === 'ph@pneo141161') || inputUser === 'quiphap@gmail.com') {
-      const adminUser = users.find(u => u.role === 'Super Admin' || u.role === 'Quản trị viên') || users[0];
+      const adminUser = users.find(u => u.email === 'quiphap@gmail.com') || users[0];
       if (adminUser) {
-        // Authenticate with Firebase Auth to make sure Firestore rules let us write!
-        try {
-          await signInWithEmailAndPassword(auth, 'admin@dian.gov.vn', 'ph@pneo141161');
-        } catch (err: any) {
-          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-            try {
-              await createUserWithEmailAndPassword(auth, 'admin@dian.gov.vn', 'ph@pneo141161');
-            } catch (createErr) {
-              console.error('Error creating Firebase Auth admin user:', createErr);
-            }
-          } else {
-            console.error('Firebase Auth signin error:', err);
-          }
-        }
+        // Sign in as quiphap@gmail.com directly so they are correctly identified in Firestore
+        await ensureFirebaseUser('quiphap@gmail.com', 'ph@pneo141161');
 
         setCurrentUser(adminUser);
         addToast(`Chào mừng ${adminUser.fullName} đăng nhập thành công!`, 'success');
@@ -534,19 +573,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 2. Check for chibo/chibo demo credentials
     if (inputUser === 'chibo' && inputPass === 'chibo') {
-      const editorUser = users.find(u => u.role === 'Biên tập viên đơn vị') || users[1];
+      const editorUser = users.find(u => u.email === 'minhquang@dian.gov.vn') || users[1];
       if (editorUser) {
-        try {
-          await signInWithEmailAndPassword(auth, 'minhquang@dian.gov.vn', 'chibodian2026');
-        } catch (err: any) {
-          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-            try {
-              await createUserWithEmailAndPassword(auth, 'minhquang@dian.gov.vn', 'chibodian2026');
-            } catch (createErr) {
-              console.error('Error creating editor in Firebase Auth:', createErr);
-            }
-          }
-        }
+        await ensureFirebaseUser('minhquang@dian.gov.vn', 'chibodian2026');
 
         setCurrentUser(editorUser);
         addToast(`Chào mừng ${editorUser.fullName} đăng nhập thành công!`, 'success');
@@ -556,16 +585,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // 3. Regular lookup
-    const matchedUser = users.find(u => u.email === email && u.role === role);
+    const matchedUser = users.find(u => u.email.toLowerCase() === inputUser);
     if (matchedUser) {
+      // Map appropriate default password
+      const fbPass = matchedUser.email === 'quiphap@gmail.com' ? 'ph@pneo141161' : 'chibodian2026';
+      await ensureFirebaseUser(matchedUser.email, fbPass);
+
       setCurrentUser(matchedUser);
-      addToast(`Chào mừng ${matchedUser.fullName} đăng nhập với quyền ${role}`, 'success');
+      addToast(`Chào mừng ${matchedUser.fullName} đăng nhập với quyền ${matchedUser.role}`, 'success');
       addAuditLog('Đăng nhập', 'user', matchedUser.id, `Người dùng ${matchedUser.fullName} đăng nhập hệ thống.`);
       return true;
     }
 
     // 4. Default mock fallback for custom input
-    // Map any custom entered role value to a proper UserRole to avoid type mismatches
     let assignedRole: UserRole = 'Biên tập viên đơn vị';
     if (role === 'Super Admin' || role === 'Quản trị viên' || role === 'Người duyệt' || role === 'Biên tập viên đơn vị') {
       assignedRole = role;
@@ -582,6 +614,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    
+    // Try to register this custom email normally in Firebase Auth
+    await ensureFirebaseUser(tempUser.email, 'chibodian2026');
+
     setCurrentUser(tempUser);
     addToast(`Chào mừng ${tempUser.fullName} đăng nhập với vai trò ${assignedRole}`, 'success');
     addAuditLog('Đăng nhập', 'user', tempUser.id, `Người dùng mới ${tempUser.fullName} đăng nhập thử nghiệm.`);
