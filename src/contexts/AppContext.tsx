@@ -376,9 +376,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (firebaseUser && firebaseUser.email) {
         const emailLower = firebaseUser.email.toLowerCase();
         const matched = mockUsers.find(u => u.email.toLowerCase() === emailLower);
+        
+        const isAdmin = emailLower === 'quiphap@gmail.com' || 
+                        emailLower === 'admin@dian.gov.vn' || 
+                        emailLower === 'phapadmin@dian.gov.vn' ||
+                        emailLower === 'admin_chinh@dian.gov.vn' ||
+                        emailLower === 'quantri@dian.gov.vn' ||
+                        emailLower === 'quiphap_admin@dian.gov.vn' ||
+                        (emailLower && emailLower.endsWith('@dian.gov.vn') && (emailLower.includes('admin') || emailLower.includes('quantri')));
+
         if (matched) {
           setCurrentUser(matched);
-        } else if (emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn' || emailLower === 'phapadmin@dian.gov.vn') {
+        } else if (isAdmin) {
           setCurrentUser({
             id: 'usr-admin',
             fullName: 'Lê Văn Chính',
@@ -399,13 +408,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let emailLower = fbEmail.toLowerCase();
     let passToUse = preferredPass;
 
-    // Direct mapping to avoid provider conflicts with real quiphap@gmail.com Google Account
-    if (emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn' || emailLower === 'phapadmin@dian.gov.vn') {
-      emailLower = 'phapadmin@dian.gov.vn';
+    const isAdminEmail = emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn' || emailLower === 'phapadmin@dian.gov.vn';
+
+    if (isAdminEmail) {
+      const adminCandidates = [
+        'phapadmin@dian.gov.vn',
+        'admin@dian.gov.vn',
+        'admin_chinh@dian.gov.vn',
+        'quantri@dian.gov.vn',
+        'quiphap_admin@dian.gov.vn'
+      ];
       passToUse = 'ph@pneo141161';
+
+      let signedIn = false;
+      for (const email of adminCandidates) {
+        console.log(`Trying to authenticate as admin candidate: ${email}`);
+        
+        const passwordsToTry = [passToUse, 'chibodian2026', 'admin123', 'admin123456'];
+        const uniquePasses = Array.from(new Set(passwordsToTry.filter(Boolean)));
+        
+        for (const pass of uniquePasses) {
+          try {
+            await signInWithEmailAndPassword(auth, email, pass);
+            console.log(`Firebase Auth signed in successfully as admin candidate: ${email}`);
+            signedIn = true;
+            break;
+          } catch (err: any) {
+            console.warn(`Sign-in attempt failed for admin candidate ${email} with password '${pass}':`, err.code || err.message);
+          }
+        }
+
+        if (signedIn) {
+          break;
+        }
+
+        // Try creating this candidate user since sign-in didn't succeed (not found, or wrong password but we want a fresh registration)
+        try {
+          await createUserWithEmailAndPassword(auth, email, passToUse);
+          console.log(`Firebase Auth admin user created successfully: ${email}`);
+          signedIn = true;
+          break;
+        } catch (createErr: any) {
+          console.error(`Error creating admin candidate ${email}:`, createErr.code || createErr.message);
+          if (createErr.code === 'auth/email-already-in-use') {
+            console.warn(`Admin candidate ${email} already in use with a different password. Moving to next candidate.`);
+          } else if (createErr.code === 'auth/operation-not-allowed') {
+            addToast(
+              'Hệ thống: Vui lòng mở Firebase Console -> Authentication -> Sign-in method -> Bật "Email/Password" để lưu trữ dữ liệu đồng bộ không bị gián đoạn.',
+              'info'
+            );
+            break;
+          }
+        }
+      }
+
+      if (!signedIn) {
+        addToast('Lỗi: Không thể kết nối hoặc khởi tạo tài khoản Quản trị viên trên Firebase Auth. Vui lòng kiểm tra lại cấu hình dự án Firebase của bạn.', 'error');
+      }
+      return;
     }
 
-    const passwordsToTry = [passToUse, 'ph@pneo141161', 'chibodian2026', 'admin123', 'admin123456'];
+    const passwordsToTry = [passToUse, 'chibodian2026', 'admin123', 'admin123456'];
     const uniquePasses = Array.from(new Set(passwordsToTry.filter(Boolean)));
     
     let signedIn = false;
@@ -427,15 +490,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (createErr: any) {
         console.error(`Error creating Firebase Auth user ${emailLower}:`, createErr);
         if (createErr.code === 'auth/email-already-in-use') {
-          console.warn(`Firebase Auth account ${emailLower} already exists but sign-in failed. Please check the credentials or sign in with Google.`);
+          addToast(`Tài khoản ${emailLower} đã tồn tại trong Firebase Auth nhưng mật khẩu không khớp.`, 'info');
         } else if (createErr.code === 'auth/operation-not-allowed') {
-          console.error('Email/Password login provider is not enabled in your Firebase Console.');
           addToast(
             'Hệ thống: Vui lòng mở Firebase Console -> Authentication -> Sign-in method -> Bật "Email/Password" để lưu trữ dữ liệu đồng bộ không bị gián đoạn.',
             'info'
           );
         } else {
-          console.warn(`Firebase Auth automatic setup skipped: ${createErr.message || createErr}`);
+          addToast(`Lỗi tạo tài khoản Firebase: ${createErr.message}`, 'error');
         }
       }
     }
