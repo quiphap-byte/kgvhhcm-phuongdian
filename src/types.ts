@@ -135,6 +135,7 @@ export interface SiteSettings {
   logo: string; // image path or Base64 placeholder
   favicon: string;
   banner: string;
+  description?: string;
   contactInfo: {
     address: string;
     phone: string;

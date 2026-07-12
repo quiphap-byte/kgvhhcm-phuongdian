@@ -3,6 +3,8 @@
 
 @theme {
   --font-sans: "Inter", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --color-red-750: #9d1717;
+  --color-red-650: #b91c1c;
 }
 
 /* Custom extra utilities if needed */

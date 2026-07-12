@@ -48,10 +48,10 @@ export const TopBar: React.FC = () => {
         <span>{timeStr || 'Hôm nay'}</span>
       </div>
 
-      {/* Center warning if utilizing mock data */}
-      <div className="flex items-center gap-2 bg-[#B91C1C]/40 border border-[#D4AF37]/40 px-3 py-1 rounded text-[11px] text-[#FBBF24] font-semibold uppercase tracking-wider">
-        <Database size={12} />
-        <span>Hệ thống đang chạy bằng dữ liệu minh họa</span>
+      {/* Official State Indicator */}
+      <div className="flex items-center gap-1.5 bg-[#B91C1C]/40 border border-[#D4AF37]/40 px-2.5 py-0.5 rounded text-[10px] text-amber-300 font-bold uppercase tracking-widest">
+        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse inline-block"></span>
+        <span>Hệ thống dữ liệu số chính thức</span>
       </div>
 
       {/* Right accessibility & Session status */}

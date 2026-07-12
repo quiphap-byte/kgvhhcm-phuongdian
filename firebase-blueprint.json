@@ -1,0 +1,158 @@
+{
+  "entities": {
+    "Category": {
+      "title": "Category",
+      "description": "A thematic category for organizing cultural and historical contents",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the category" },
+        "name": { "type": "string", "description": "The visual name of the category" },
+        "slug": { "type": "string", "description": "The URL-friendly slug" },
+        "description": { "type": "string", "description": "A summary of what this category represents" },
+        "parentId": { "type": "string", "description": "ID of parent category if sub-category" },
+        "icon": { "type": "string", "description": "The name of a Lucide-react icon to render" },
+        "displayOrder": { "type": "number", "description": "Display sort order" },
+        "status": { "type": "string", "enum": ["Hiển thị", "Ẩn"] }
+      },
+      "required": ["id", "name", "slug", "displayOrder", "status"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "description": "A Party organization unit or branch publishing contents on the portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the unit" },
+        "name": { "type": "string", "description": "Visual name of the unit/branch" },
+        "slug": { "type": "string", "description": "URL-friendly slug" },
+        "type": { "type": "string", "enum": ["Chi bộ", "Đảng bộ", "Cơ quan hành chính", "Trường học", "Khu phố", "Lực lượng vũ trang", "Doanh nghiệp"] },
+        "description": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "representative": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "displayOrder": { "type": "number" },
+        "status": { "type": "string", "enum": ["Hiển thị", "Ẩn"] }
+      },
+      "required": ["id", "name", "slug", "type", "displayOrder", "status"]
+    },
+    "Content": {
+      "title": "Content",
+      "description": "A content article, documentary paper, image, video or audio material",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 500 },
+        "slug": { "type": "string" },
+        "contentType": { "type": "string", "enum": ["Bài viết", "PDF", "Video", "Âm thanh", "Hình ảnh"] },
+        "categoryId": { "type": "string" },
+        "unitId": { "type": "string" },
+        "summary": { "type": "string", "maxLength": 1000 },
+        "body": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "sourceName": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "documentTitle": { "type": "string" },
+        "publisher": { "type": "string" },
+        "publicationYear": { "type": "number" },
+        "verificationNote": { "type": "string" },
+        "author": { "type": "string" },
+        "editor": { "type": "string" },
+        "reviewer": { "type": "string" },
+        "keywords": { "type": "array" },
+        "status": { "type": "string", "enum": ["Nháp", "Chờ duyệt", "Đã xuất bản", "Lưu trữ"] },
+        "featured": { "type": "boolean" },
+        "viewCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "slug", "contentType", "categoryId", "summary", "body", "status", "viewCount", "createdAt", "updatedAt"]
+    },
+    "MediaItem": {
+      "title": "MediaItem",
+      "description": "A uploaded media file stored or referenced in the system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "fileUrl": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "fileName", "fileType", "fileSize", "fileUrl", "uploadedBy", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "An action log of content or setting changes on the system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userFullName": { "type": "string" },
+        "action": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userFullName", "action", "entityType", "entityId", "description", "createdAt"]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "System-wide brand, contact, and customizable front-page settings",
+      "type": "object",
+      "properties": {
+        "siteName": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "logo": { "type": "string" },
+        "favicon": { "type": "string" },
+        "banner": { "type": "string" },
+        "contactInfo": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "phone": { "type": "string" },
+            "email": { "type": "string" },
+            "workingHours": { "type": "string" }
+          }
+        },
+        "footerText": { "type": "string" },
+        "primaryColor": { "type": "string" },
+        "fontSizeAdjustment": { "type": "number" },
+        "heroTitle": { "type": "string" },
+        "heroSubtitle": { "type": "string" },
+        "welcomeTitle": { "type": "string" },
+        "welcomeText": { "type": "string" }
+      },
+      "required": ["siteName", "subtitle", "logo", "contactInfo", "footerText"]
+    }
+  },
+  "firestore": {
+    "categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Collection of thematic categories"
+    },
+    "units/{unitId}": {
+      "schema": "Unit",
+      "description": "Collection of Party units"
+    },
+    "contents/{contentId}": {
+      "schema": "Content",
+      "description": "Collection of articles and historical artifacts"
+    },
+    "mediaLibrary/{mediaId}": {
+      "schema": "MediaItem",
+      "description": "Collection of media assets"
+    },
+    "auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Collection of audit operations"
+    },
+    "settings/site": {
+      "schema": "SiteSettings",
+      "description": "The unique document for global site configuration"
+    }
+  }
+}

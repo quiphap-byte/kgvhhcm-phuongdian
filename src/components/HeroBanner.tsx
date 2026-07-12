@@ -27,14 +27,17 @@ export const HeroBanner: React.FC = () => {
         
         {/* Text Section */}
         <div className="flex-1 text-center md:text-left">
-          <span className="inline-block bg-amber-500 text-neutral-950 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-4 shadow">
-            Công trình số hóa chính trị của Đảng bộ Phường
+          <span className="inline-block bg-amber-500 text-neutral-950 text-[10px] md:text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-4 shadow">
+            Công trình số hóa chính trị của <span className="inline-block whitespace-nowrap">Đảng bộ Phường</span>
           </span>
           <h2 
             className={`${getAdjustedTextClass('3xl')} font-black tracking-tight leading-tight uppercase text-amber-300 drop-shadow-sm`}
-            style={{ whiteSpace: 'pre-line' }}
           >
-            {displayTitle}
+            {displayTitle.split('\n').map((line, idx) => (
+              <span key={idx} className="block sm:inline-block whitespace-nowrap sm:mr-3 last:mr-0">
+                {line}
+              </span>
+            ))}
           </h2>
           <p className="text-sm md:text-base text-neutral-200 mt-4 leading-relaxed max-w-2xl font-medium">
             {displaySubtitle}

@@ -941,8 +941,8 @@ export const mockMediaLibrary: MediaItem[] = [
 export const mockUsers: User[] = [
   {
     id: 'usr-admin',
-    fullName: 'Lê Văn Chính',
-    email: 'quiphap@gmail.com', // Match system user email for easier simulation/experience
+    fullName: 'admin',
+    email: 'quiphap@gmail.com',
     role: 'Super Admin',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
     status: 'Hoạt động',
@@ -978,6 +978,7 @@ export const defaultSiteSettings: SiteSettings = {
   logo: '', // empty for fallback svg logo
   favicon: '',
   banner: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80',
+  description: 'Ủy ban nhân dân Phường Dĩ An, Thành phố Dĩ An - Trang thông tin điện tử lưu trữ và trưng bày hệ thống di sản tư tưởng Hồ Chí Minh.',
   contactInfo: {
     address: 'Đường Nguyễn Du, Khu phố Trung Toàn, Phường Dĩ An, Thành phố Hồ Chí Minh (TP.HCM)',
     phone: '028.3752144',

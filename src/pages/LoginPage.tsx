@@ -5,28 +5,39 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { LogIn, ShieldAlert, Key, UserCheck } from 'lucide-react';
+import { LogIn, UserCheck, Chrome } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login, getAdjustedTextClass, navigateTo, currentUser, logout } = useApp();
+  const { login, loginWithGoogle, getAdjustedTextClass, navigateTo, currentUser, logout } = useApp();
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
 
     setLoading(true);
-    // Mimic quick network call
-    setTimeout(() => {
-      const isOk = login(username, password);
+    try {
+      const isOk = await login(username, password);
       setLoading(false);
       if (isOk) {
         window.location.hash = 'admin/dashboard';
       }
-    }, 450);
+    } catch (err) {
+      setLoading(false);
+      console.error(err);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    const ok = await loginWithGoogle();
+    setLoading(false);
+    if (ok) {
+      window.location.hash = 'admin/dashboard';
+    }
   };
 
   if (currentUser) {
@@ -71,19 +82,10 @@ export const LoginPage: React.FC = () => {
 
       <form 
         onSubmit={handleLoginSubmit}
+        autoComplete="off"
         className="bg-white border border-neutral-200 rounded-2xl p-6 md:p-8 shadow-md flex flex-col gap-4 relative"
       >
         
-        {/* Credentials guide block */}
-        <div className="bg-neutral-50 border p-3 rounded-lg text-[11px] text-neutral-600 font-semibold leading-relaxed">
-          <div className="flex items-center gap-1.5 text-red-800 font-bold mb-1 uppercase">
-            <ShieldAlert size={13} />
-            <span>Tài khoản dùng thử (Demo):</span>
-          </div>
-          <p>• Ban Biên tập Phường: <span className="font-extrabold text-neutral-850">admin</span> / mật khẩu: <span className="font-extrabold text-neutral-850">admin</span></p>
-          <p className="mt-0.5">• Biên tập viên Chi bộ: <span className="font-extrabold text-neutral-850">chibo</span> / mật khẩu: <span className="font-extrabold text-neutral-850">chibo</span></p>
-        </div>
-
         {/* Username */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] uppercase font-black text-neutral-400">Tên tài khoản (Username)</label>
@@ -91,6 +93,7 @@ export const LoginPage: React.FC = () => {
             id="login-input-username"
             type="text"
             required
+            autoComplete="off"
             placeholder="Nhập tên đăng nhập"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -107,6 +110,7 @@ export const LoginPage: React.FC = () => {
             id="login-input-password"
             type="password"
             required
+            autoComplete="new-password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -119,7 +123,7 @@ export const LoginPage: React.FC = () => {
           id="btn-login-submit"
           type="submit"
           disabled={loading}
-          className="mt-2 w-full py-3 bg-red-750 hover:bg-red-800 text-white font-bold text-xs uppercase tracking-wide rounded-lg shadow transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+          className="mt-2 w-full py-3 bg-red-750 hover:bg-red-800 text-white font-bold text-xs uppercase tracking-wide rounded-lg shadow transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
         >
           {loading ? (
             <span>Đang kiểm tra...</span>
@@ -129,6 +133,24 @@ export const LoginPage: React.FC = () => {
               <span>Đăng nhập hệ thống</span>
             </>
           )}
+        </button>
+
+        {/* Divider */}
+        <div className="relative flex py-2 items-center">
+          <div className="flex-grow border-t border-neutral-200"></div>
+          <span className="flex-shrink mx-4 text-neutral-400 text-[10px] font-bold uppercase tracking-wider">Hoặc</span>
+          <div className="flex-grow border-t border-neutral-200"></div>
+        </div>
+
+        {/* Google sign-in button */}
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full py-3 bg-white hover:bg-neutral-50 text-neutral-700 hover:text-neutral-800 font-extrabold text-xs uppercase tracking-wide rounded-lg border border-neutral-300 shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+        >
+          <Chrome size={14} className="text-red-600 animate-pulse" />
+          <span>Đăng nhập bằng Google</span>
         </button>
 
       </form>

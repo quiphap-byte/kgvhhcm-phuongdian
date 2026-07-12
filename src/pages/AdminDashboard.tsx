@@ -6,11 +6,13 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Content, Category, Unit, SiteSettings } from '../types';
+import { compressImage } from '../lib/imageCompressor';
 import { 
   Building2, BookOpen, ShieldAlert, FileText, Plus, 
   Settings, History, Search, Edit2, Archive, CheckCircle, 
   Eye, Star, ArrowLeft, Save, Trash2, HelpCircle,
-  FolderOpen, Layout, ChevronRight, ChevronDown, Layers
+  FolderOpen, Layout, ChevronRight, ChevronDown, Layers,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -101,10 +103,12 @@ export const AdminDashboard: React.FC = () => {
   const [homeHeroSubtitle, setHomeHeroSubtitle] = useState(settings.heroSubtitle || '');
   const [homeWelcomeTitle, setHomeWelcomeTitle] = useState(settings.welcomeTitle || '');
   const [homeWelcomeText, setHomeWelcomeText] = useState(settings.welcomeText || '');
+  const [homeSections, setHomeSections] = useState<string[]>([]);
 
   // System Settings fields
   const [siteName, setSiteName] = useState(settings.siteName);
-  const [siteDesc, setSiteDesc] = useState(settings.description);
+  const [siteLogo, setSiteLogo] = useState(settings.logo || '');
+  const [siteDesc, setSiteDesc] = useState(settings.description || '');
   const [siteAddress, setSiteAddress] = useState(settings.contactInfo.address);
   const [sitePhone, setSitePhone] = useState(settings.contactInfo.phone);
   const [siteEmail, setSiteEmail] = useState(settings.contactInfo.email);
@@ -114,7 +118,8 @@ export const AdminDashboard: React.FC = () => {
   // Sync settings fields if changed
   useEffect(() => {
     setSiteName(settings.siteName);
-    setSiteDesc(settings.description);
+    setSiteLogo(settings.logo || '');
+    setSiteDesc(settings.description || '');
     setSiteAddress(settings.contactInfo.address);
     setSitePhone(settings.contactInfo.phone);
     setSiteEmail(settings.contactInfo.email);
@@ -125,6 +130,7 @@ export const AdminDashboard: React.FC = () => {
     setHomeHeroSubtitle(settings.heroSubtitle || '');
     setHomeWelcomeTitle(settings.welcomeTitle || '');
     setHomeWelcomeText(settings.welcomeText || '');
+    setHomeSections(settings.homepageSections || ['banner', 'intro', 'quickTopics', 'localSpaces', 'featuredNews', 'timelineBrief']);
   }, [settings]);
 
   // Category & Unit Helper state-resets
@@ -246,7 +252,8 @@ export const AdminDashboard: React.FC = () => {
       heroTitle: homeHeroTitle,
       heroSubtitle: homeHeroSubtitle,
       welcomeTitle: homeWelcomeTitle,
-      welcomeText: homeWelcomeText
+      welcomeText: homeWelcomeText,
+      homepageSections: homeSections
     };
     saveSettings(payload);
   };
@@ -398,21 +405,37 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload: SiteSettings = {
-      ...settings,
-      siteName,
-      description: siteDesc,
-      footerText: footerTxt,
-      contactInfo: {
-        address: siteAddress,
-        phone: sitePhone,
-        email: siteEmail,
-        workingHours: siteHours || undefined
-      }
-    };
-    saveSettings(payload);
-  };
+     e.preventDefault();
+     const payload: SiteSettings = {
+       ...settings,
+       siteName,
+       logo: siteLogo,
+       description: siteDesc,
+       footerText: footerTxt,
+       contactInfo: {
+         address: siteAddress,
+         phone: sitePhone,
+         email: siteEmail,
+         workingHours: siteHours || ''
+       }
+     };
+     saveSettings(payload);
+   };
+
+   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (file) {
+       try {
+         addToast('Đang tối ưu hóa biểu trưng...', 'info');
+         const compressed = await compressImage(file, 240, 240, 0.75);
+         setSiteLogo(compressed);
+         addToast('Đã tải và nén biểu trưng mới thành công!', 'success');
+       } catch (error) {
+         console.error('Lỗi nén ảnh:', error);
+         addToast('Không thể nén biểu trưng này. Vui lòng thử ảnh khác.', 'error');
+       }
+     }
+   };
 
   return (
     <div id="admin-dashboard-page" className="max-w-7xl mx-auto px-6 py-6 flex flex-col gap-6">
@@ -1582,6 +1605,93 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
+              {/* 3. Section Toggling and Reordering */}
+              <div className="bg-white border border-neutral-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm">
+                <div>
+                  <h4 className="text-xs font-black uppercase text-neutral-850">3. Quản lý Bố cục &amp; Thứ tự hiển thị Trang chủ</h4>
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    Bật/Tắt các thành phần và bấm nút di chuyển <strong>Lên / Xuống</strong> để sắp xếp lại thứ tự xuất hiện ngoài trang chủ theo ý muốn của Bạn.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {[
+                    { id: 'banner', name: 'Banner chào mừng (Hero Banner)', desc: 'Ảnh sao vàng búa liềm cùng tiêu đề chính Không gian Văn hóa Hồ Chí Minh Số và các nút liên kết tra cứu nhanh.' },
+                    { id: 'intro', name: 'Lời Ngỏ hành chính (Welcoming Introduction)', desc: 'Lời Ngỏ chính trị từ Thường trực Đảng ủy và Ban biên tập phục vụ cán bộ, nhân dân.' },
+                    { id: 'quickTopics', name: 'Tính năng chính của trang (Main Features)', desc: 'Sáu ô lưới chức năng tra cứu bản đồ số, thư viện số, dòng thời gian, và chuyên đề học tập.' },
+                    { id: 'localSpaces', name: 'Không gian Văn hóa tại Cơ sở (Local Spaces Showcase)', desc: 'Khối giới thiệu các mô hình Không gian văn hóa thực tế trực quan từ các chi bộ trực thuộc.' },
+                    { id: 'featuredNews', name: 'Nội dung nổi bật & Tài liệu mới nhất', desc: 'Cột hiển thị tin tức hoạt động, câu chuyện nổi bật kết hợp cột tài liệu PDF số hóa mới nhất.' },
+                    { id: 'timelineBrief', name: 'Dòng thời gian sự nghiệp & Bản đồ hành trình', desc: 'Bản vẽ giới thiệu dòng thời gian tương tác và bản đồ 3D hành trình 30 năm cứu nước.' },
+                  ].map((sec) => {
+                    const isActive = homeSections.includes(sec.id);
+                    const activeIndex = homeSections.indexOf(sec.id);
+
+                    return (
+                      <div key={sec.id} className={`flex items-center justify-between p-3.5 rounded-lg border transition-all ${isActive ? 'bg-amber-50/30 border-amber-500/25' : 'bg-neutral-50 border-neutral-200 opacity-65'}`}>
+                        <div className="flex items-center gap-3">
+                          <input 
+                            id={`chk-section-${sec.id}`}
+                            type="checkbox"
+                            checked={isActive}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setHomeSections([...homeSections, sec.id]);
+                              } else {
+                                setHomeSections(homeSections.filter(id => id !== sec.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-red-700 border-neutral-300 rounded focus:ring-red-500 cursor-pointer"
+                          />
+                          <div>
+                            <span className="text-xs font-black uppercase text-neutral-800">{sec.name}</span>
+                            <p className="text-[10px] text-neutral-400 mt-0.5">{sec.desc}</p>
+                          </div>
+                        </div>
+
+                        {isActive && (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={activeIndex === 0}
+                              onClick={() => {
+                                if (activeIndex > 0) {
+                                  const newSections = [...homeSections];
+                                  const temp = newSections[activeIndex];
+                                  newSections[activeIndex] = newSections[activeIndex - 1];
+                                  newSections[activeIndex - 1] = temp;
+                                  setHomeSections(newSections);
+                                }
+                              }}
+                              className={`p-1.5 rounded border transition-colors ${activeIndex === 0 ? 'text-neutral-300 border-neutral-100 cursor-not-allowed' : 'text-neutral-650 hover:text-red-800 border-neutral-250 bg-white hover:bg-neutral-50'}`}
+                              title="Di chuyển lên"
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={activeIndex === homeSections.length - 1}
+                              onClick={() => {
+                                if (activeIndex < homeSections.length - 1) {
+                                  const newSections = [...homeSections];
+                                  const temp = newSections[activeIndex];
+                                  newSections[activeIndex] = newSections[activeIndex + 1];
+                                  newSections[activeIndex + 1] = temp;
+                                  setHomeSections(newSections);
+                                }
+                              }}
+                              className={`p-1.5 rounded border transition-colors ${activeIndex === homeSections.length - 1 ? 'text-neutral-300 border-neutral-100 cursor-not-allowed' : 'text-neutral-650 hover:text-red-800 border-neutral-250 bg-white hover:bg-neutral-50'}`}
+                              title="Di chuyển xuống"
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="flex justify-end border-t pt-4">
                 <button
                   type="submit"
@@ -1649,6 +1759,69 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="text-xs font-black uppercase text-neutral-400 border-b pb-2 tracking-wider">
                 Cấu hình thông tin liên hệ & Thương hiệu Phường Dĩ An
               </h3>
+
+              {/* Biểu trưng Hệ thống (System Logo) */}
+              <div className="bg-neutral-50 rounded-xl p-5 border border-neutral-200 flex flex-col md:flex-row items-start md:items-center gap-6">
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-black uppercase text-neutral-400">Biểu trưng hiện tại</span>
+                  <div className="w-24 h-24 rounded-full border border-neutral-350 bg-white flex items-center justify-center overflow-hidden shadow-inner">
+                    {siteLogo ? (
+                      <img 
+                        src={siteLogo} 
+                        alt="Preview Logo" 
+                        className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="text-[10px] text-neutral-400 font-bold text-center px-2">Sử dụng SVG Mặc định</div>
+                    )}
+                  </div>
+                  {siteLogo && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSiteLogo('');
+                        addToast('Đã khôi phục biểu trưng SVG mặc định', 'info');
+                      }}
+                      className="text-[10px] text-red-650 hover:text-red-750 font-extrabold uppercase mt-1 transition-colors"
+                    >
+                      Khôi phục mặc định
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex-1 flex flex-col gap-3">
+                  <div>
+                    <h4 className="text-xs font-black text-neutral-800 uppercase">Cấu hình Biểu trưng Hệ thống</h4>
+                    <p className="text-[11px] text-neutral-400 mt-1 leading-relaxed">
+                      Bạn có thể chọn tải lên file ảnh từ máy tính (PNG, JPG) hoặc nhập địa chỉ URL trực tiếp của hình ảnh logo. Nếu để trống, cổng thông tin sẽ tự động hiển thị biểu trưng hình tượng vàng đỏ truyền thống của Chủ tịch Hồ Chí Minh.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-black text-neutral-400">Tải ảnh lên từ máy tính</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoFileChange}
+                        className="w-full text-xs font-semibold bg-white p-2 border rounded file:mr-2.5 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-neutral-100 file:text-neutral-700 hover:file:bg-neutral-200 cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-black text-neutral-400">Hoặc Địa chỉ URL biểu trưng</label>
+                      <input
+                        type="text"
+                        value={siteLogo}
+                        onChange={(e) => setSiteLogo(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full text-xs font-semibold bg-white p-2.5 border rounded"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">

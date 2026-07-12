@@ -101,19 +101,21 @@ export const ContentDetail: React.FC = () => {
             </h2>
 
             {/* Meta statistics bar */}
-            <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-neutral-500 font-semibold">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-4 text-xs text-neutral-500 font-semibold">
               <span className="flex items-center gap-1">
                 <Calendar size={13} className="text-neutral-400" />
                 <span>Xuất bản: {formatDate(content.publishedAt || content.createdAt)}</span>
               </span>
-              <span className="flex items-center gap-1 border-l pl-3 border-neutral-200">
+              <span className="flex items-center gap-1">
+                <span className="text-neutral-300">•</span>
                 <Eye size={13} className="text-neutral-400" />
                 <span>{content.viewCount} lượt xem</span>
               </span>
               {publishingUnit && (
-                <span className="flex items-center gap-1 border-l pl-3 border-neutral-200 text-red-800">
+                <span className="flex items-center gap-1">
+                  <span className="text-neutral-300">•</span>
                   <span className="w-1.5 h-1.5 bg-red-700 rounded-full"></span>
-                  <span>{publishingUnit.name}</span>
+                  <span className="text-red-800">{publishingUnit.name}</span>
                 </span>
               )}
             </div>
@@ -149,16 +151,7 @@ export const ContentDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Editorial / Verification disclaimer if placeholder */}
-          {content.sourceName && content.sourceName.includes('thử nghiệm') && (
-            <div className="bg-amber-50 border border-amber-500/20 p-3.5 rounded-lg text-xs text-amber-800 flex items-start gap-2">
-              <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-              <div>
-                <p className="font-bold">Nội dung minh họa phục vụ thử nghiệm giao diện</p>
-                <p className="mt-0.5">Bài viết này nằm trong danh mục biên tập thử nghiệm, chưa phải là nội dung lịch sử chính thức được phê duyệt bởi Ban Xây dựng Đảng Đảng ủy phường Dĩ An.</p>
-              </div>
-            </div>
-          )}
+
 
           {/* Hero thumbnail or embed element */}
           {content.contentType === 'Video' && content.videoUrl ? (

@@ -10,6 +10,23 @@ import {
 import { 
   mockCategories, mockUnits, mockContents, mockTimelineEvents, mockJourneyPoints, mockMediaLibrary, mockUsers, defaultSiteSettings, initialAuditLogs 
 } from '../data/mockData';
+import { db, auth } from '../lib/firebase';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  onSnapshot 
+} from 'firebase/firestore';
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
 
 interface AppContextType {
   // Navigation
@@ -37,7 +54,8 @@ interface AppContextType {
   
   // Authentication
   currentUser: User | null;
-  login: (email: string, role: UserRole) => boolean;
+  login: (email: string, role: UserRole) => Promise<boolean>;
+  loginWithGoogle: () => Promise<boolean>;
   logout: () => void;
   isFirebaseEnabled: boolean;
   
@@ -86,9 +104,30 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+  };
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Check if Firebase is enabled (fallback when no env configuration exists)
-  const isFirebaseEnabled = false; // By default, we use local mock states.
+  const isFirebaseEnabled = true;
 
   // --- LOCAL STORAGE STATE INITIALIZATION ---
   const [categories, setCategories] = useState<Category[]>(() => {
@@ -96,8 +135,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       return JSON.parse(saved);
     }
-    localStorage.setItem('kgvh_categories_v2_new', JSON.stringify(mockCategories));
-    localStorage.removeItem('kgvh_categories');
     return mockCategories;
   });
 
@@ -111,8 +148,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       return JSON.parse(saved);
     }
-    localStorage.setItem('kgvh_contents_v2_new', JSON.stringify(mockContents));
-    localStorage.removeItem('kgvh_contents');
     return mockContents;
   });
 
@@ -137,10 +172,198 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users] = useState<User[]>(mockUsers);
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('kgvh_current_user');
-    // Default to the first admin user for demo purposes so they can explore the CMS right away
-    return saved ? JSON.parse(saved) : mockUsers[0];
+    const saved = sessionStorage.getItem('kgvh_current_user');
+    return saved ? JSON.parse(saved) : null;
   });
+
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    localStorage.removeItem('kgvh_current_user');
+  }, []);
+
+  const cleanUndefined = (obj: any): any => {
+    if (obj === null || obj === undefined) return null;
+    if (Array.isArray(obj)) {
+      return obj.map(item => typeof item === 'object' ? cleanUndefined(item) : item);
+    }
+    if (typeof obj === 'object') {
+      const cleaned: any = {};
+      for (const key of Object.keys(obj)) {
+        const val = obj[key];
+        if (val !== undefined) {
+          cleaned[key] = typeof val === 'object' ? cleanUndefined(val) : val;
+        }
+      }
+      return cleaned;
+    }
+    return obj;
+  };
+
+  const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: currentUser?.id || null,
+        email: currentUser?.email || null,
+        emailVerified: true,
+        isAnonymous: !currentUser,
+      },
+      operationType,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    addToast(`Lỗi Firestore (${operationType} - ${path}): ${error instanceof Error ? error.message : String(error)}`, 'error');
+  };
+
+  // --- REAL-TIME FIREBASE SYNC ---
+  useEffect(() => {
+    // 1. Categories
+    const unsubCategories = onSnapshot(collection(db, 'categories'), async (snapshot) => {
+      if (snapshot.empty) {
+        for (const item of mockCategories) {
+          await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `categories/${item.id}`));
+        }
+      } else {
+        const list: Category[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as Category);
+        });
+        setCategories(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'categories');
+    });
+
+    // 2. Units
+    const unsubUnits = onSnapshot(collection(db, 'units'), async (snapshot) => {
+      if (snapshot.empty) {
+        for (const item of mockUnits) {
+          await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `units/${item.id}`));
+        }
+      } else {
+        const list: Unit[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as Unit);
+        });
+        setUnits(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'units');
+    });
+
+    // 3. Contents
+    const unsubContents = onSnapshot(collection(db, 'contents'), async (snapshot) => {
+      if (snapshot.empty) {
+        for (const item of mockContents) {
+          await setDoc(doc(db, 'contents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `contents/${item.id}`));
+        }
+      } else {
+        const list: Content[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as Content);
+        });
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setContents(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'contents');
+    });
+
+    // 4. Media Library
+    const unsubMedia = onSnapshot(collection(db, 'mediaLibrary'), async (snapshot) => {
+      if (snapshot.empty) {
+        for (const item of mockMediaLibrary) {
+          await setDoc(doc(db, 'mediaLibrary', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `mediaLibrary/${item.id}`));
+        }
+      } else {
+        const list: MediaItem[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as MediaItem);
+        });
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setMediaLibrary(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'mediaLibrary');
+    });
+
+    // 5. Settings
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'site'), async (docSnap) => {
+      if (!docSnap.exists()) {
+        await setDoc(doc(db, 'settings', 'site'), cleanUndefined(defaultSiteSettings)).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings/site'));
+      } else {
+        setSettings(docSnap.data() as SiteSettings);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/site');
+    });
+
+    return () => {
+      unsubCategories();
+      unsubUnits();
+      unsubContents();
+      unsubMedia();
+      unsubSettings();
+    };
+  }, []);
+
+  // --- SECURE REAL-TIME FIREBASE SYNC FOR AUDIT LOGS ---
+  useEffect(() => {
+    const authorizedEmails = ['quiphap@gmail.com', 'minhquang@dian.gov.vn', 'kimthanh@dian.gov.vn', 'admin@dian.gov.vn'];
+    const isAuthorized = currentUser && currentUser.email && authorizedEmails.includes(currentUser.email.toLowerCase());
+
+    if (!authReady || !isAuthorized || !auth.currentUser) {
+      setAuditLogs([]);
+      return;
+    }
+
+    const unsubLogs = onSnapshot(collection(db, 'auditLogs'), async (snapshot) => {
+      if (snapshot.empty) {
+        for (const item of initialAuditLogs) {
+          await setDoc(doc(db, 'auditLogs', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `auditLogs/${item.id}`));
+        }
+      } else {
+        const list: AuditLog[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as AuditLog);
+        });
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setAuditLogs(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'auditLogs');
+    });
+
+    return () => {
+      unsubLogs();
+    };
+  }, [currentUser, authReady]);
+
+  // Synchronize Firebase Auth state with our app state for secure operations
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setAuthReady(true);
+      if (firebaseUser && firebaseUser.email) {
+        const emailLower = firebaseUser.email.toLowerCase();
+        const matched = mockUsers.find(u => u.email.toLowerCase() === emailLower);
+        if (matched) {
+          setCurrentUser(matched);
+        } else if (emailLower === 'quiphap@gmail.com' || emailLower === 'admin@dian.gov.vn') {
+          setCurrentUser({
+            id: 'usr-admin',
+            fullName: 'admin',
+            email: 'quiphap@gmail.com',
+            role: 'Super Admin',
+            status: 'Hoạt động',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // --- NAVIGATION SYSTEM ---
   const [currentPath, setCurrentPath] = useState<string>('home');
@@ -196,7 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [settings]);
 
   useEffect(() => {
-    localStorage.setItem('kgvh_current_user', currentUser ? JSON.stringify(currentUser) : '');
+    sessionStorage.setItem('kgvh_current_user', currentUser ? JSON.stringify(currentUser) : '');
   }, [currentUser]);
 
   // Handle browser back/forward and hash changes
@@ -278,15 +501,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // --- AUTHENTICATION METHODS ---
-  const login = (email: string, role: UserRole): boolean => {
+  const login = async (email: string, role: UserRole): Promise<boolean> => {
     // Normalization / Demo mappings
     const inputUser = email.trim().toLowerCase();
-    const inputPass = (role as string || '').trim().toLowerCase();
+    const inputPass = (role as string || '').trim();
 
-    // 1. Check for admin/admin demo credentials or system user email
-    if ((inputUser === 'admin' && inputPass === 'admin') || inputUser === 'quiphap@gmail.com') {
+    // 1. Check for admin/ph@pneo141161 credentials or system user email
+    if ((inputUser === 'admin' && inputPass === 'ph@pneo141161') || inputUser === 'quiphap@gmail.com') {
       const adminUser = users.find(u => u.role === 'Super Admin' || u.role === 'Quản trị viên') || users[0];
       if (adminUser) {
+        // Authenticate with Firebase Auth to make sure Firestore rules let us write!
+        try {
+          await signInWithEmailAndPassword(auth, 'admin@dian.gov.vn', 'ph@pneo141161');
+        } catch (err: any) {
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+            try {
+              await createUserWithEmailAndPassword(auth, 'admin@dian.gov.vn', 'ph@pneo141161');
+            } catch (createErr) {
+              console.error('Error creating Firebase Auth admin user:', createErr);
+            }
+          } else {
+            console.error('Firebase Auth signin error:', err);
+          }
+        }
+
         setCurrentUser(adminUser);
         addToast(`Chào mừng ${adminUser.fullName} đăng nhập thành công!`, 'success');
         addAuditLog('Đăng nhập', 'user', adminUser.id, `Người dùng ${adminUser.fullName} đăng nhập hệ thống.`);
@@ -298,6 +536,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (inputUser === 'chibo' && inputPass === 'chibo') {
       const editorUser = users.find(u => u.role === 'Biên tập viên đơn vị') || users[1];
       if (editorUser) {
+        try {
+          await signInWithEmailAndPassword(auth, 'minhquang@dian.gov.vn', 'chibodian2026');
+        } catch (err: any) {
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+            try {
+              await createUserWithEmailAndPassword(auth, 'minhquang@dian.gov.vn', 'chibodian2026');
+            } catch (createErr) {
+              console.error('Error creating editor in Firebase Auth:', createErr);
+            }
+          }
+        }
+
         setCurrentUser(editorUser);
         addToast(`Chào mừng ${editorUser.fullName} đăng nhập thành công!`, 'success');
         addAuditLog('Đăng nhập', 'user', editorUser.id, `Biên tập viên ${editorUser.fullName} đăng nhập hệ thống.`);
@@ -319,7 +569,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let assignedRole: UserRole = 'Biên tập viên đơn vị';
     if (role === 'Super Admin' || role === 'Quản trị viên' || role === 'Người duyệt' || role === 'Biên tập viên đơn vị') {
       assignedRole = role;
-    } else if (inputPass.includes('admin') || inputPass.includes('quantri')) {
+    } else if (inputPass.toLowerCase().includes('admin') || inputPass.toLowerCase().includes('quantri')) {
       assignedRole = 'Quản trị viên';
     }
 
@@ -338,11 +588,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
-  const logout = () => {
+  const loginWithGoogle = async (): Promise<boolean> => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      if (user && user.email) {
+        const matched = mockUsers.find(u => u.email.toLowerCase() === user.email?.toLowerCase());
+        if (matched) {
+          setCurrentUser(matched);
+          addToast(`Chào mừng ${matched.fullName} đăng nhập thành công với tài khoản Google!`, 'success');
+          addAuditLog('Đăng nhập Google', 'user', matched.id, `Người dùng ${matched.fullName} đăng nhập Google thành công.`);
+          return true;
+        } else if (user.email.toLowerCase() === 'quiphap@gmail.com') {
+          const superAdminUser: User = {
+            id: 'usr-admin',
+            fullName: user.displayName || 'Lê Văn Chính',
+            email: 'quiphap@gmail.com',
+            role: 'Super Admin',
+            status: 'Hoạt động',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          setCurrentUser(superAdminUser);
+          addToast(`Chào mừng Lê Văn Chính đăng nhập thành công với tài khoản Google!`, 'success');
+          addAuditLog('Đăng nhập Google', 'user', 'usr-admin', `Super Admin Lê Văn Chính đăng nhập Google thành công.`);
+          return true;
+        } else {
+          addToast(`Tài khoản Google (${user.email}) chưa được phân quyền trong hệ thống.`, 'error');
+          await signOut(auth);
+          return false;
+        }
+      }
+      return false;
+    } catch (err: any) {
+      console.error('Google Auth Error:', err);
+      addToast(`Lỗi đăng nhập Google: ${err.message || String(err)}`, 'error');
+      return false;
+    }
+  };
+
+  const logout = async () => {
     if (currentUser) {
       addAuditLog('Đăng xuất', 'user', currentUser.id, `Người dùng ${currentUser.fullName} đăng xuất.`);
     }
     setCurrentUser(null);
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Lỗi đăng xuất Firebase:', err);
+    }
     addToast('Đã đăng xuất tài khoản', 'info');
     navigateTo('home');
   };
@@ -392,8 +687,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     entityId: string, 
     description: string
   ) => {
+    const id = `log-${Date.now()}`;
     const newLog: AuditLog = {
-      id: `log-${Date.now()}`,
+      id,
       userId: currentUser?.id || 'anonymous',
       userFullName: currentUser?.fullName || 'Khách vãng lai',
       action,
@@ -402,7 +698,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description,
       createdAt: new Date().toISOString()
     };
-    setAuditLogs(prev => [newLog, ...prev]);
+    setDoc(doc(db, 'auditLogs', id), cleanUndefined(newLog)).catch(err => handleFirestoreError(err, OperationType.CREATE, `auditLogs/${id}`));
   };
 
   // --- CRUD FUNCTIONS FOR CONTENT ---
@@ -415,36 +711,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    setContents(prev => [newContent, ...prev]);
+    setDoc(doc(db, 'contents', id), cleanUndefined(newContent)).catch(err => handleFirestoreError(err, OperationType.CREATE, `contents/${id}`));
     addAuditLog('Tạo bài viết', 'content', id, `Đã tạo bài viết mới: "${newContent.title}"`);
     addToast('Tạo bài viết mới thành công!', 'success');
     return id;
   };
 
   const updateContent = (id: string, updatedFields: Partial<Content>) => {
-    setContents(prev => prev.map(c => {
-      if (c.id === id) {
-        const result = {
-          ...c,
-          ...updatedFields,
-          updatedAt: new Date().toISOString()
-        };
-        addAuditLog(
-          updatedFields.status && updatedFields.status !== c.status ? 'Duyệt bài viết' : 'Cập nhật bài viết', 
-          'content', 
-          id, 
-          `Đã cập nhật bài viết: "${result.title}" (Trạng thái: ${result.status})`
-        );
-        return result;
-      }
-      return c;
-    }));
+    const docRef = doc(db, 'contents', id);
+    const existing = contents.find(c => c.id === id);
+    const fieldsToUpdate = {
+      ...updatedFields,
+      updatedAt: new Date().toISOString()
+    };
+    updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `contents/${id}`));
+
+    if (existing) {
+      addAuditLog(
+        updatedFields.status && updatedFields.status !== existing.status ? 'Duyệt bài viết' : 'Cập nhật bài viết', 
+        'content', 
+        id, 
+        `Đã cập nhật bài viết: "${updatedFields.title || existing.title}" (Trạng thái: ${updatedFields.status || existing.status})`
+      );
+    }
     addToast('Cập nhật bài viết thành công!', 'success');
   };
 
   const deleteContent = (id: string) => {
     const item = contents.find(c => c.id === id);
-    setContents(prev => prev.filter(c => c.id !== id));
+    deleteDoc(doc(db, 'contents', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `contents/${id}`));
     addAuditLog('Xóa bài viết', 'content', id, `Đã xóa vĩnh viễn bài viết: "${item?.title || id}"`);
     addToast('Xóa vĩnh viễn tư liệu bài viết thành công!', 'success');
   };
@@ -458,30 +753,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    setUnits(prev => [...prev, newUnit]);
+    setDoc(doc(db, 'units', id), cleanUndefined(newUnit)).catch(err => handleFirestoreError(err, OperationType.CREATE, `units/${id}`));
     addAuditLog('Tạo đơn vị', 'unit', id, `Đã tạo đơn vị mới: "${newUnit.name}"`);
     addToast('Thêm đơn vị mới thành công!', 'success');
     return id;
   };
 
   const updateUnit = (id: string, updatedFields: Partial<Unit>) => {
-    setUnits(prev => prev.map(u => {
-      if (u.id === id) {
-        const result = {
-          ...u,
-          ...updatedFields,
-          updatedAt: new Date().toISOString()
-        };
-        addAuditLog('Cập nhật đơn vị', 'unit', id, `Đã cập nhật đơn vị: "${result.name}"`);
-        return result;
-      }
-      return u;
-    }));
+    const docRef = doc(db, 'units', id);
+    const fieldsToUpdate = {
+      ...updatedFields,
+      updatedAt: new Date().toISOString()
+    };
+    updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `units/${id}`));
+    addAuditLog('Cập nhật đơn vị', 'unit', id, `Đã cập nhật đơn vị.`);
     addToast('Cập nhật thông tin đơn vị thành công!', 'success');
   };
 
   const deleteUnit = (id: string) => {
-    setUnits(prev => prev.filter(u => u.id !== id));
+    deleteDoc(doc(db, 'units', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `units/${id}`));
     addAuditLog('Xóa đơn vị', 'unit', id, `Đã xóa đơn vị có mã ${id}`);
     addToast('Đã xóa đơn vị khỏi hệ thống', 'info');
   };
@@ -493,26 +783,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...categoryData,
       id
     };
-    setCategories(prev => [...prev, newCategory]);
+    setDoc(doc(db, 'categories', id), cleanUndefined(newCategory)).catch(err => handleFirestoreError(err, OperationType.CREATE, `categories/${id}`));
     addAuditLog('Tạo danh mục', 'category', id, `Đã tạo danh mục mới: "${newCategory.name}"`);
     addToast('Thêm danh mục mới thành công!', 'success');
     return id;
   };
 
   const updateCategory = (id: string, updatedFields: Partial<Category>) => {
-    setCategories(prev => prev.map(c => {
-      if (c.id === id) {
-        const result = { ...c, ...updatedFields };
-        addAuditLog('Cập nhật danh mục', 'category', id, `Đã cập nhật danh mục: "${result.name}"`);
-        return result;
-      }
-      return c;
-    }));
+    const docRef = doc(db, 'categories', id);
+    updateDoc(docRef, cleanUndefined(updatedFields)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `categories/${id}`));
+    addAuditLog('Cập nhật danh mục', 'category', id, `Đã cập nhật danh mục.`);
     addToast('Cập nhật danh mục thành công!', 'success');
   };
 
   const deleteCategory = (id: string) => {
-    setCategories(prev => prev.filter(c => c.id !== id));
+    deleteDoc(doc(db, 'categories', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `categories/${id}`));
     addAuditLog('Xóa danh mục', 'category', id, `Đã xóa danh mục mã ${id}`);
     addToast('Đã xóa danh mục', 'info');
   };
@@ -525,21 +810,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       createdAt: new Date().toISOString()
     };
-    setMediaLibrary(prev => [newItem, ...prev]);
+    setDoc(doc(db, 'mediaLibrary', id), cleanUndefined(newItem)).catch(err => handleFirestoreError(err, OperationType.CREATE, `mediaLibrary/${id}`));
     addAuditLog('Tải lên media', 'content', id, `Tải lên file: ${mediaData.fileName}`);
     addToast('Tải lên tệp đa phương tiện thành công!', 'success');
     return id;
   };
 
   const deleteMediaItem = (id: string) => {
-    setMediaLibrary(prev => prev.filter(m => m.id !== id));
+    deleteDoc(doc(db, 'mediaLibrary', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `mediaLibrary/${id}`));
     addAuditLog('Xóa media', 'content', id, `Đã xóa tệp media mã ${id}`);
     addToast('Đã xóa tệp đa phương tiện', 'info');
   };
 
   // --- SAVE SYSTEM SETTINGS ---
   const saveSettings = (updatedSettings: SiteSettings) => {
-    setSettings(updatedSettings);
+    setDoc(doc(db, 'settings', 'site'), cleanUndefined(updatedSettings)).catch(err => handleFirestoreError(err, OperationType.UPDATE, 'settings/site'));
     addAuditLog('Cập nhật hệ thống', 'settings', 'settings', 'Thay đổi cấu hình giao diện và thông tin liên hệ của Phường.');
     addToast('Cập nhật cấu hình hệ thống thành công!', 'success');
   };
@@ -568,6 +853,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       currentUser,
       login,
+      loginWithGoogle,
       logout,
       isFirebaseEnabled,
       

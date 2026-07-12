@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Search, MapPin, Sparkles } from 'lucide-react';
+import { OfficialLogo } from './OfficialLogo';
 
 export const SiteHeader: React.FC = () => {
   const { searchQuery, setSearchQuery, navigateTo, getAdjustedTextClass } = useApp();
@@ -26,37 +27,8 @@ export const SiteHeader: React.FC = () => {
           onClick={() => navigateTo('home')} 
           className="flex items-center gap-4 cursor-pointer select-none group"
         >
-          {/* Emblem SVG: Beautiful stylized red and gold local emblem */}
-          <div className="relative w-16 h-16 shrink-0 transition-transform group-hover:scale-105 duration-200">
-            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-              <circle cx="50" cy="50" r="46" fill="#8B0000" stroke="#D4AF37" strokeWidth="3" />
-              <circle cx="50" cy="50" r="38" fill="none" stroke="#D4AF37" strokeWidth="1" strokeDasharray="3,3" />
-              {/* Stylized Lotus petals surrounding a star */}
-              <path 
-                d="M50,20 Q45,35 50,45 Q55,35 50,20 Z" 
-                fill="#D4AF37" 
-              />
-              <path 
-                d="M50,80 Q45,65 50,55 Q55,65 50,80 Z" 
-                fill="#D4AF37" 
-              />
-              <path 
-                d="M20,50 Q35,45 45,50 Q35,55 20,50 Z" 
-                fill="#D4AF37" 
-              />
-              <path 
-                d="M80,50 Q65,45 55,50 Q65,55 80,50 Z" 
-                fill="#D4AF37" 
-              />
-              {/* Star in Center */}
-              <polygon 
-                points="50,38 53,46 62,46 55,51 58,59 50,54 42,59 45,51 38,46 47,46" 
-                fill="#FBBF24" 
-              />
-              {/* Decorative base water waves */}
-              <path d="M 30 75 Q 40 70 50 75 T 70 75" fill="none" stroke="#FBBF24" strokeWidth="1.5" />
-            </svg>
-          </div>
+          {/* Emblem: Beautiful round emblem with curved text and Uncle Ho portrait */}
+          <OfficialLogo size={68} className="shrink-0 transition-transform group-hover:scale-105 duration-200" />
 
           <div>
             <h1 className={`${getAdjustedTextClass('xl')} font-bold text-[#8B0000] tracking-tight leading-tight uppercase`}>
@@ -64,7 +36,7 @@ export const SiteHeader: React.FC = () => {
             </h1>
             <p className="text-gray-500 font-semibold text-xs md:text-sm tracking-widest mt-0.5 flex items-center gap-1.5 uppercase">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#B91C1C]"></span>
-              Phường Dĩ An • Thành phố Dĩ An
+              Phường Dĩ An • Thành phố Hồ Chí Minh
             </p>
           </div>
         </div>
