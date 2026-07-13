@@ -47,7 +47,7 @@ export const LoginPage: React.FC = () => {
         <div>
           <h3 className="font-black text-neutral-900 uppercase">Trạng thái đăng nhập</h3>
           <p className="text-xs text-neutral-500 font-bold mt-1">Bạn đang đăng nhập với tài khoản:</p>
-          <p className="text-sm text-red-800 font-black mt-1 uppercase">{currentUser.name} ({currentUser.role})</p>
+          <p className="text-sm text-red-800 font-black mt-1 uppercase">{currentUser.fullName} ({currentUser.role})</p>
         </div>
         <div className="flex gap-2 w-full mt-4">
           <button

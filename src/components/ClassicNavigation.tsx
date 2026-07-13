@@ -91,7 +91,7 @@ export const ClassicNavigation: React.FC = () => {
   const secondaryNavItems = [
     { label: 'Thư viện số', path: 'thu-vien-so', icon: BookOpen },
     { label: 'Dòng thời gian', path: 'dong-thoi-gian', icon: Clock },
-    { label: 'Bản đồ số', path: 'ban-do', icon: Map },
+    { label: 'Hành trình vạn dặm', path: 'ban-do', icon: Map },
     { label: 'Tin tức – hoạt động', path: 'tin-tuc-hoat-dong', icon: FileText },
     { label: 'Giới thiệu', path: 'gioi-thieu', icon: Info },
     { label: 'Liên hệ', path: 'lien-he', icon: Phone }

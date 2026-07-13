@@ -97,7 +97,7 @@ export const HeroBanner: React.FC = () => {
                 <span className="text-amber-500 font-black text-sm mt-0.5">03</span>
                 <div>
                   <h4 className="text-xs font-bold text-neutral-100 hover:text-amber-300 cursor-pointer" onClick={() => navigateTo('ban-do')}>
-                    Bản đồ Hành trình
+                    Hành trình vạn dặm
                   </h4>
                   <p className="text-[10px] text-neutral-400 mt-0.5">30 năm tìm đường giải phóng dân tộc.</p>
                 </div>

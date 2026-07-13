@@ -167,3 +167,47 @@ export interface AuditLog {
   description: string;
   createdAt: string;
 }
+
+export interface JourneyStop {
+  id: string;
+  name: string;
+  time: string;
+  country: string;
+  continent: 'Asia' | 'Europe' | 'Africa' | 'America';
+  age: number;
+  pseudonym: string;
+  activity: string;
+  coords: { x: number; y: number }; // SVG map coordinates (1000 x 500)
+  latLng: string;
+  latLngCoords: [number, number]; // Exact coordinates for real interactive map
+  thumbnail: string;
+  quote?: string;
+  sourceName: string;
+  sourceUrl?: string;
+  details?: string;
+  keyWork?: {
+    title: string;
+    desc: string;
+  };
+}
+
+export interface HistoricalWork {
+  id: string;
+  title: string;
+  slug: string;
+  publishYear: string;
+  summary: string;
+  content: string;
+  thumbnail: string;
+  pdfUrl?: string;
+  readOnlineUrl?: string;
+  location?: string;
+  description?: string;
+  quote?: string;
+  linkedStopId?: string;
+  displayOrder: number;
+  status: 'Hiển thị' | 'Ẩn';
+  createdAt: string;
+  updatedAt: string;
+}
+

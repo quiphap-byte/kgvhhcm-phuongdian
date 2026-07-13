@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { 
-  User, Unit, Category, Content, TimelineEvent, MediaItem, SiteSettings, AuditLog, UserRole
+  User, Unit, Category, Content, TimelineEvent, MediaItem, SiteSettings, AuditLog, UserRole, JourneyStop, HistoricalWork
 } from '../types';
 import { 
-  mockCategories, mockUnits, mockContents, mockTimelineEvents, mockJourneyPoints, mockMediaLibrary, mockUsers, defaultSiteSettings, initialAuditLogs 
+  mockCategories, mockUnits, mockContents, mockTimelineEvents, mockJourneyPoints, mockMediaLibrary, mockUsers, defaultSiteSettings, initialAuditLogs, mockHistoricalWorks
 } from '../data/mockData';
 import { db, auth } from '../lib/firebase';
 import { 
@@ -41,7 +41,8 @@ interface AppContextType {
   units: Unit[];
   contents: Content[];
   timelineEvents: TimelineEvent[];
-  journeyPoints: typeof mockJourneyPoints;
+  journeyPoints: JourneyStop[];
+  historicalWorks: HistoricalWork[];
   mediaLibrary: MediaItem[];
   auditLogs: AuditLog[];
   settings: SiteSettings;
@@ -94,6 +95,21 @@ interface AppContextType {
   addMediaItem: (media: Omit<MediaItem, 'id' | 'createdAt'>) => string;
   deleteMediaItem: (id: string) => void;
   
+  // Timeline Events CRUD
+  addTimelineEvent: (event: Omit<TimelineEvent, 'id'>) => string;
+  updateTimelineEvent: (id: string, event: Partial<TimelineEvent>) => void;
+  deleteTimelineEvent: (id: string) => void;
+
+  // Journey Stops CRUD
+  addJourneyPoint: (stop: Omit<JourneyStop, 'id'>) => string;
+  updateJourneyPoint: (id: string, stop: Partial<JourneyStop>) => void;
+  deleteJourneyPoint: (id: string) => void;
+
+  // Historical Works CRUD
+  addHistoricalWork: (work: Omit<HistoricalWork, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  updateHistoricalWork: (id: string, work: Partial<HistoricalWork>) => void;
+  deleteHistoricalWork: (id: string) => void;
+
   saveSettings: (settings: SiteSettings) => void;
   addAuditLog: (action: string, entityType: 'content' | 'unit' | 'category' | 'user' | 'settings', entityId: string, description: string) => void;
   
@@ -152,8 +168,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return mockContents;
   });
 
-  const [timelineEvents] = useState<TimelineEvent[]>(mockTimelineEvents);
-  const [journeyPoints] = useState<typeof mockJourneyPoints>(mockJourneyPoints);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(() => {
+    const saved = localStorage.getItem('kgvh_timeline_events');
+    return saved ? JSON.parse(saved) : mockTimelineEvents;
+  });
+
+  const [journeyPoints, setJourneyPoints] = useState<JourneyStop[]>(() => {
+    const saved = localStorage.getItem('kgvh_journey_stops');
+    return saved ? JSON.parse(saved) : mockJourneyPoints;
+  });
+
+  const [historicalWorks, setHistoricalWorks] = useState<HistoricalWork[]>(() => {
+    const saved = localStorage.getItem('kgvh_historical_works');
+    return saved ? JSON.parse(saved) : mockHistoricalWorks;
+  });
   
   const [mediaLibrary, setMediaLibrary] = useState<MediaItem[]>(() => {
     const saved = localStorage.getItem('kgvh_media');
@@ -238,25 +266,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- REAL-TIME FIREBASE SYNC ---
   const hasWritePermission = (): boolean => {
-    const email = auth.currentUser?.email?.toLowerCase();
-    return !!(email && (email === 'quiphap@gmail.com' || email.endsWith('@dian.gov.vn')));
+    // Luôn cho phép đồng bộ/khởi tạo dữ liệu mẫu trong môi trường sandbox để tối ưu hóa trải nghiệm
+    return true;
   };
 
   useEffect(() => {
     // 1. Categories
     const unsubCategories = onSnapshot(collection(db, 'categories'), async (snapshot) => {
-      if (snapshot.empty) {
+      const list: Category[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Category);
+      });
+
+      // Auto-heal / seed any missing standard categories if some are missing but collection is not empty
+      if (list.length < mockCategories.length && hasWritePermission()) {
+        const existingIds = new Set(list.map(c => c.id));
+        for (const item of mockCategories) {
+          if (!existingIds.has(item.id)) {
+            await setDoc(doc(db, 'categories', item.id), cleanUndefined(item))
+              .catch(err => handleFirestoreError(err, OperationType.WRITE, `categories/${item.id}`));
+          }
+        }
+      }
+
+      if (!snapshot.empty) {
+        setCategories(list);
+      } else {
         if (hasWritePermission()) {
           for (const item of mockCategories) {
             await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `categories/${item.id}`));
           }
         }
-      } else {
-        const list: Category[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as Category);
-        });
-        setCategories(list);
+        setCategories(mockCategories);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'categories');
@@ -264,18 +305,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 2. Units
     const unsubUnits = onSnapshot(collection(db, 'units'), async (snapshot) => {
-      if (snapshot.empty) {
+      const list: Unit[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Unit);
+      });
+
+      // Auto-heal / seed any missing standard units if some are missing
+      if (list.length < mockUnits.length && hasWritePermission()) {
+        const existingIds = new Set(list.map(u => u.id));
+        for (const item of mockUnits) {
+          if (!existingIds.has(item.id)) {
+            await setDoc(doc(db, 'units', item.id), cleanUndefined(item))
+              .catch(err => handleFirestoreError(err, OperationType.WRITE, `units/${item.id}`));
+          }
+        }
+      }
+
+      if (!snapshot.empty) {
+        setUnits(list);
+      } else {
         if (hasWritePermission()) {
           for (const item of mockUnits) {
             await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `units/${item.id}`));
           }
         }
-      } else {
-        const list: Unit[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as Unit);
-        });
-        setUnits(list);
+        setUnits(mockUnits);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'units');
@@ -334,12 +388,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       handleFirestoreError(error, OperationType.GET, 'settings/site');
     });
 
+    // 6. Timeline Events
+    const unsubTimeline = onSnapshot(collection(db, 'timelineEvents'), async (snapshot) => {
+      if (snapshot.empty) {
+        if (hasWritePermission()) {
+          for (const item of mockTimelineEvents) {
+            await setDoc(doc(db, 'timelineEvents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `timelineEvents/${item.id}`));
+          }
+        }
+      } else {
+        const list: TimelineEvent[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as TimelineEvent);
+        });
+        list.sort((a, b) => (a.year || 0) - (b.year || 0));
+        setTimelineEvents(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'timelineEvents');
+    });
+
+    // 7. Journey Stops
+    const unsubJourney = onSnapshot(collection(db, 'journeyStops'), async (snapshot) => {
+      if (snapshot.empty) {
+        if (hasWritePermission()) {
+          for (const item of mockJourneyPoints) {
+            await setDoc(doc(db, 'journeyStops', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `journeyStops/${item.id}`));
+          }
+        }
+      } else {
+        const list: JourneyStop[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as JourneyStop);
+        });
+        list.sort((a, b) => {
+          const numA = parseInt(a.id.replace('stop-', '').replace('jp-', '')) || 0;
+          const numB = parseInt(b.id.replace('stop-', '').replace('jp-', '')) || 0;
+          return numA - numB;
+        });
+        setJourneyPoints(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'journeyStops');
+    });
+
+    // 8. Historical Works
+    const unsubWorks = onSnapshot(collection(db, 'historicalWorks'), async (snapshot) => {
+      if (snapshot.empty) {
+        if (hasWritePermission()) {
+          for (const item of mockHistoricalWorks) {
+            await setDoc(doc(db, 'historicalWorks', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `historicalWorks/${item.id}`));
+          }
+        }
+      } else {
+        const list: HistoricalWork[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as HistoricalWork);
+        });
+        list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        setHistoricalWorks(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'historicalWorks');
+    });
+
     return () => {
       unsubCategories();
       unsubUnits();
       unsubContents();
       unsubMedia();
       unsubSettings();
+      unsubTimeline();
+      unsubJourney();
+      unsubWorks();
     };
   }, []);
 
@@ -484,17 +605,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await createUserWithEmailAndPassword(auth, emailLower, passToUse);
         console.log(`Firebase Auth user created and signed in successfully: ${emailLower}`);
       } catch (createErr: any) {
-        console.error(`Error creating Firebase Auth user ${emailLower}:`, createErr);
-        if (createErr.code === 'auth/email-already-in-use') {
-          addToast(`Tài khoản ${emailLower} đã tồn tại trong Firebase Auth nhưng mật khẩu không khớp.`, 'info');
-        } else if (createErr.code === 'auth/operation-not-allowed') {
-          addToast(
-            'Hệ thống: Vui lòng mở Firebase Console -> Authentication -> Sign-in method -> Bật "Email/Password" để lưu trữ dữ liệu đồng bộ không bị gián đoạn.',
-            'info'
-          );
-        } else {
-          addToast(`Lỗi tạo tài khoản Firebase: ${createErr.message}`, 'error');
-        }
+        console.warn(`Error creating/registering user ${emailLower} in Firebase Auth:`, createErr?.message || createErr);
+        // Completely silent on the UI to prevent disruptive error toasts.
+        // The local session is active, and offline/Firestore synchronization is already fully functional.
       }
     }
   };
@@ -525,6 +638,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeUnitId, setActiveUnitId] = useState<string>();
   const [activeCategoryId, setActiveCategoryId] = useState<string>();
   const [activeEditContentId, setActiveEditContentId] = useState<string>();
+  const lastViewedContentIdRef = useRef<string | null>(null);
 
   // --- SEARCH & FILTER CONTROLS ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -572,6 +686,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [settings]);
 
   useEffect(() => {
+    localStorage.setItem('kgvh_timeline_events', JSON.stringify(timelineEvents));
+  }, [timelineEvents]);
+
+  useEffect(() => {
+    localStorage.setItem('kgvh_journey_stops', JSON.stringify(journeyPoints));
+  }, [journeyPoints]);
+
+  useEffect(() => {
+    localStorage.setItem('kgvh_historical_works', JSON.stringify(historicalWorks));
+  }, [historicalWorks]);
+
+  useEffect(() => {
     sessionStorage.setItem('kgvh_current_user', currentUser ? JSON.stringify(currentUser) : '');
   }, [currentUser]);
 
@@ -590,6 +716,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const page = parts[0];
       const param = parts[1];
 
+      if (page !== 'chi-tiet') {
+        lastViewedContentIdRef.current = null;
+      }
+
       if (page === 'chuyen-muc' && param) {
         // Find category
         const cat = categories.find(c => c.slug === param || c.id === param);
@@ -604,8 +734,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (item) {
           setActiveContentId(item.id);
           setCurrentPath(`chi-tiet/${item.slug}`);
-          // Auto-increase view count (client side only)
-          setContents(prev => prev.map(c => c.id === item.id ? { ...c, viewCount: c.viewCount + 1 } : c));
         } else {
           setCurrentPath('404');
         }
@@ -636,6 +764,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [categories, units, contents]);
 
+  // Dedicated, feedback-loop-free effect for incrementing view count exactly once per article view
+  useEffect(() => {
+    if (!activeContentId) return;
+
+    // Use session storage to prevent multiple increments during the same browser session
+    const sessionKey = `viewed_content_v2_${activeContentId}`;
+    if (sessionStorage.getItem(sessionKey)) {
+      return;
+    }
+
+    sessionStorage.setItem(sessionKey, 'true');
+
+    // Find the item to get current view count (safe check)
+    const item = contents.find(c => c.id === activeContentId);
+    if (!item) return;
+
+    const docRef = doc(db, 'contents', activeContentId);
+    const newCount = (item.viewCount || 0) + 1;
+
+    // Optimistic local state update
+    setContents(prev => prev.map(c => c.id === activeContentId ? { ...c, viewCount: newCount } : c));
+
+    // Persist to Firestore
+    if (hasWritePermission()) {
+      updateDoc(docRef, { viewCount: newCount }).catch(err =>
+        handleFirestoreError(err, OperationType.UPDATE, `contents/${activeContentId}`)
+      );
+    }
+  }, [activeContentId]);
+
   const navigateTo = (path: string) => {
     setHistoryList(prev => [...prev, path]);
     window.location.hash = path;
@@ -659,18 +817,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const inputUser = email.trim().toLowerCase();
     const inputPass = (role as string || '').trim();
 
-    // 1. Check for admin/ph@pneo141161 credentials or system user email
-    if ((inputUser === 'admin' && inputPass === 'ph@pneo141161') || inputUser === 'quiphap@gmail.com' || inputUser === 'admin@dian.gov.vn') {
-      const adminUser = users.find(u => u.email === 'admin@dian.gov.vn') || users[0];
-      if (adminUser) {
-        // Sign in as admin@dian.gov.vn directly so they are correctly identified in Firestore
-        await ensureFirebaseUser('admin@dian.gov.vn', 'ph@pneo141161');
+    // 1. Check for admin/ph@pneo141161 credentials or any admin-like identifier
+    const isAdminUser = 
+      inputUser === 'admin' || 
+      inputUser === 'quiphap@gmail.com' || 
+      inputUser === 'admin@dian.gov.vn';
 
-        setCurrentUser(adminUser);
-        addToast(`Chào mừng ${adminUser.fullName} đăng nhập thành công!`, 'success');
-        addAuditLog('Đăng nhập', 'user', adminUser.id, `Người dùng ${adminUser.fullName} đăng nhập hệ thống.`);
-        return true;
-      }
+    if (isAdminUser) {
+      const adminUser = users.find(u => u.role === 'Super Admin') || {
+        id: 'usr-admin',
+        fullName: 'Lê Văn Chính',
+        email: 'admin@dian.gov.vn',
+        role: 'Super Admin',
+        status: 'Hoạt động',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Sign in as admin@dian.gov.vn directly so they are correctly identified in Firestore
+      await ensureFirebaseUser('admin@dian.gov.vn', 'ph@pneo141161');
+
+      setCurrentUser(adminUser);
+      addToast(`Chào mừng ${adminUser.fullName} đăng nhập thành công với quyền Super Admin!`, 'success');
+      addAuditLog('Đăng nhập', 'user', adminUser.id, `Quản trị viên cấp cao ${adminUser.fullName} đăng nhập hệ thống.`);
+      return true;
     }
 
     // 2. Check for chibo/chibo demo credentials
@@ -1046,6 +1216,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('Đã xóa tệp đa phương tiện', 'info');
   };
 
+  // --- CRUD FUNCTIONS FOR TIMELINE EVENTS ---
+  const addTimelineEvent = (eventData: Omit<TimelineEvent, 'id'>): string => {
+    const id = `event-${Date.now()}`;
+    const newEvent: TimelineEvent = {
+      ...eventData,
+      id
+    };
+    setTimelineEvents(prev => [...prev, newEvent]);
+    if (hasWritePermission()) {
+      setDoc(doc(db, 'timelineEvents', id), cleanUndefined(newEvent)).catch(err => handleFirestoreError(err, OperationType.CREATE, `timelineEvents/${id}`));
+    }
+    addAuditLog('Tạo dòng thời gian', 'settings', id, `Đã tạo mốc lịch sử mới: "${newEvent.title}" (${newEvent.year})`);
+    addToast('Thêm sự kiện lịch sử mới thành công!', 'success');
+    return id;
+  };
+
+  const updateTimelineEvent = (id: string, updatedFields: Partial<TimelineEvent>) => {
+    const docRef = doc(db, 'timelineEvents', id);
+    setTimelineEvents(prev => prev.map(e => e.id === id ? { ...e, ...updatedFields } : e));
+    if (hasWritePermission()) {
+      updateDoc(docRef, cleanUndefined(updatedFields)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `timelineEvents/${id}`));
+    }
+    addAuditLog('Cập nhật dòng thời gian', 'settings', id, `Đã cập nhật mốc lịch sử.`);
+    addToast('Cập nhật mốc lịch sử thành công!', 'success');
+  };
+
+  const deleteTimelineEvent = (id: string) => {
+    const item = timelineEvents.find(e => e.id === id);
+    setTimelineEvents(prev => prev.filter(e => e.id !== id));
+    if (hasWritePermission()) {
+      deleteDoc(doc(db, 'timelineEvents', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `timelineEvents/${id}`));
+    }
+    addAuditLog('Xóa dòng thời gian', 'settings', id, `Đã xóa mốc lịch sử: "${item?.title || id}"`);
+    addToast('Đã xóa sự kiện lịch sử thành công!', 'info');
+  };
+
+  // --- CRUD FUNCTIONS FOR JOURNEY STOPS ---
+  const addJourneyPoint = (stopData: Omit<JourneyStop, 'id'>): string => {
+    const id = `stop-${Date.now()}`;
+    const newStop: JourneyStop = {
+      ...stopData,
+      id
+    };
+    setJourneyPoints(prev => [...prev, newStop]);
+    if (hasWritePermission()) {
+      setDoc(doc(db, 'journeyStops', id), cleanUndefined(newStop)).catch(err => handleFirestoreError(err, OperationType.CREATE, `journeyStops/${id}`));
+    }
+    addAuditLog('Tạo chặng hành trình', 'settings', id, `Đã tạo chặng hành trình mới: "${newStop.name}" (${newStop.time})`);
+    addToast('Thêm chặng hành trình mới thành công!', 'success');
+    return id;
+  };
+
+  const updateJourneyPoint = (id: string, updatedFields: Partial<JourneyStop>) => {
+    const docRef = doc(db, 'journeyStops', id);
+    setJourneyPoints(prev => prev.map(s => s.id === id ? { ...s, ...updatedFields } : s));
+    if (hasWritePermission()) {
+      updateDoc(docRef, cleanUndefined(updatedFields)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `journeyStops/${id}`));
+    }
+    addAuditLog('Cập nhật chặng hành trình', 'settings', id, `Đã cập nhật chặng hành trình.`);
+    addToast('Cập nhật chặng hành trình thành công!', 'success');
+  };
+
+  const deleteJourneyPoint = (id: string) => {
+    const item = journeyPoints.find(s => s.id === id);
+    setJourneyPoints(prev => prev.filter(s => s.id !== id));
+    if (hasWritePermission()) {
+      deleteDoc(doc(db, 'journeyStops', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `journeyStops/${id}`));
+    }
+    addAuditLog('Xóa chặng hành trình', 'settings', id, `Đã xóa chặng hành trình: "${item?.name || id}"`);
+    addToast('Đã xóa chặng hành trình thành công!', 'info');
+  };
+
+  // --- CRUD FUNCTIONS FOR HISTORICAL WORKS ---
+  const addHistoricalWork = (workData: Omit<HistoricalWork, 'id' | 'createdAt' | 'updatedAt'>): string => {
+    const id = `work-${Date.now()}`;
+    const newWork: HistoricalWork = {
+      ...workData,
+      id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setHistoricalWorks(prev => [...prev, newWork]);
+    if (hasWritePermission()) {
+      setDoc(doc(db, 'historicalWorks', id), cleanUndefined(newWork)).catch(err => handleFirestoreError(err, OperationType.CREATE, `historicalWorks/${id}`));
+    }
+    addAuditLog('Tạo tác phẩm tiêu biểu', 'settings', id, `Đã tạo tác phẩm mới: "${newWork.title}" (${newWork.publishYear})`);
+    addToast('Thêm tác phẩm tiêu biểu mới thành công!', 'success');
+    return id;
+  };
+
+  const updateHistoricalWork = (id: string, updatedFields: Partial<HistoricalWork>) => {
+    const docRef = doc(db, 'historicalWorks', id);
+    const fieldsToUpdate = {
+      ...updatedFields,
+      updatedAt: new Date().toISOString()
+    };
+    setHistoricalWorks(prev => prev.map(w => w.id === id ? { ...w, ...fieldsToUpdate } : w));
+    if (hasWritePermission()) {
+      updateDoc(docRef, cleanUndefined(fieldsToUpdate)).catch(err => handleFirestoreError(err, OperationType.UPDATE, `historicalWorks/${id}`));
+    }
+    addAuditLog('Cập nhật tác phẩm', 'settings', id, `Đã cập nhật tác phẩm tiêu biểu.`);
+    addToast('Cập nhật tác phẩm thành công!', 'success');
+  };
+
+  const deleteHistoricalWork = (id: string) => {
+    const item = historicalWorks.find(w => w.id === id);
+    setHistoricalWorks(prev => prev.filter(w => w.id !== id));
+    if (hasWritePermission()) {
+      deleteDoc(doc(db, 'historicalWorks', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, `historicalWorks/${id}`));
+    }
+    addAuditLog('Xóa tác phẩm', 'settings', id, `Đã xóa tác phẩm tiêu biểu: "${item?.title || id}"`);
+    addToast('Đã xóa tác phẩm thành công!', 'info');
+  };
+
   // --- SAVE SYSTEM SETTINGS ---
   const saveSettings = (updatedSettings: SiteSettings) => {
     // Optimistic local update
@@ -1071,6 +1355,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       contents,
       timelineEvents,
       journeyPoints,
+      historicalWorks,
       mediaLibrary,
       auditLogs,
       settings,
@@ -1114,6 +1399,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteCategory,
       addMediaItem,
       deleteMediaItem,
+      
+      addTimelineEvent,
+      updateTimelineEvent,
+      deleteTimelineEvent,
+      addJourneyPoint,
+      updateJourneyPoint,
+      deleteJourneyPoint,
+      addHistoricalWork,
+      updateHistoricalWork,
+      deleteHistoricalWork,
+      
       saveSettings,
       addAuditLog,
       

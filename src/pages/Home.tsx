@@ -47,7 +47,7 @@ export const Home: React.FC = () => {
     },
     {
       id: 'heritage-map',
-      name: 'Bản đồ di sản tương tác',
+      name: 'Hành trình vạn dặm',
       description: 'Khám phá hành trình vạn dặm bôn ba cứu nước qua các đại dương, quốc gia của Người trên giao diện số.',
       icon: <Compass className="text-emerald-500" size={24} />,
       path: 'ban-do'
@@ -335,7 +335,7 @@ export const Home: React.FC = () => {
                   className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-black text-xs rounded-lg transition-all shadow flex items-center gap-1.5"
                 >
                   <Compass size={14} />
-                  <span>Khám phá Bản đồ hành trình</span>
+                  <span>Khám phá Hành trình vạn dặm</span>
                 </button>
               </div>
             </div>

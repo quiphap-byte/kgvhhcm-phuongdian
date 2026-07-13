@@ -5,14 +5,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { Content, Category, Unit, SiteSettings } from '../types';
+import { Content, Category, Unit, SiteSettings, TimelineEvent, JourneyStop, HistoricalWork } from '../types';
 import { compressImage } from '../lib/imageCompressor';
 import { 
   Building2, BookOpen, ShieldAlert, FileText, Plus, 
   Settings, History, Search, Edit2, Archive, CheckCircle, 
   Eye, Star, ArrowLeft, Save, Trash2, HelpCircle,
   FolderOpen, Layout, ChevronRight, ChevronDown, Layers,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, Compass, MapPin, Clock
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -35,13 +35,26 @@ export const AdminDashboard: React.FC = () => {
     deleteCategory,
     addUnit,
     updateUnit,
-    deleteUnit
+    deleteUnit,
+    
+    timelineEvents,
+    journeyPoints,
+    historicalWorks,
+    addTimelineEvent,
+    updateTimelineEvent,
+    deleteTimelineEvent,
+    addJourneyPoint,
+    updateJourneyPoint,
+    deleteJourneyPoint,
+    addHistoricalWork,
+    updateHistoricalWork,
+    deleteHistoricalWork
   } = useApp();
 
   const isAdmin = currentUser?.role === 'Administrator' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Quản trị viên';
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'contents' | 'categories' | 'units' | 'homepage' | 'settings' | 'logs'>('contents');
+  const [activeTab, setActiveTab] = useState<'contents' | 'categories' | 'units' | 'homepage' | 'settings' | 'logs' | 'journey' | 'timeline' | 'works'>('contents');
 
   // Article Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -97,6 +110,47 @@ export const AdminDashboard: React.FC = () => {
   const [unitThumbField, setUnitThumbField] = useState('');
   const [unitOrderField, setUnitOrderField] = useState('1');
   const [unitStatusField, setUnitStatusField] = useState<'Hiển thị' | 'Ẩn'>('Hiển thị');
+
+  // --- NEW: Timeline Event Form States ---
+  const [isEditingTimelineEvent, setIsEditingTimelineEvent] = useState(false);
+  const [editingTimelineEvent, setEditingTimelineEvent] = useState<TimelineEvent | null>(null);
+  const [timeYear, setTimeYear] = useState('');
+  const [timeDate, setTimeDate] = useState('');
+  const [timeTitle, setTimeTitle] = useState('');
+  const [timeSummary, setTimeSummary] = useState('');
+  const [timeBody, setTimeBody] = useState('');
+  const [timePeriod, setTimePeriod] = useState<any>('1911-1920');
+  const [timeSourceName, setTimeSourceName] = useState('');
+  const [timeLocation, setTimeLocation] = useState('');
+  const [timeThumbnail, setTimeThumbnail] = useState('');
+
+  // --- NEW: Journey Stop Form States ---
+  const [isEditingJourneyPoint, setIsEditingJourneyPoint] = useState(false);
+  const [editingJourneyPoint, setEditingJourneyPoint] = useState<JourneyStop | null>(null);
+  const [stopLatLngLat, setStopLatLngLat] = useState('');
+  const [stopLatLngLng, setStopLatLngLng] = useState('');
+  const [stopName, setStopName] = useState('');
+  const [stopTime, setStopTime] = useState('');
+  const [stopAge, setStopAge] = useState<number>(21);
+  const [stopPseudonym, setStopPseudonym] = useState('');
+  const [stopActivity, setStopActivity] = useState('');
+  const [stopDetails, setStopDetails] = useState('');
+  const [stopContinent, setStopContinent] = useState('Asia');
+  const [stopCountry, setStopCountry] = useState('');
+  const [stopSourceName, setStopSourceName] = useState('');
+  const [stopSourceUrl, setStopSourceUrl] = useState('');
+
+  // --- NEW: Historical Work Form States ---
+  const [isEditingHistoricalWork, setIsEditingHistoricalWork] = useState(false);
+  const [editingHistoricalWork, setEditingHistoricalWork] = useState<HistoricalWork | null>(null);
+  const [workTitle, setWorkTitle] = useState('');
+  const [workPublishYear, setWorkPublishYear] = useState('');
+  const [workLocation, setWorkLocation] = useState('');
+  const [workDescription, setWorkDescription] = useState('');
+  const [workQuote, setWorkQuote] = useState('');
+  const [workLinkedStopId, setWorkLinkedStopId] = useState('');
+  const [workThumbnail, setWorkThumbnail] = useState('');
+  const [workDisplayOrder, setWorkDisplayOrder] = useState<number>(1);
 
   // Homepage Customization fields
   const [homeHeroTitle, setHomeHeroTitle] = useState(settings.heroTitle || '');
@@ -243,6 +297,182 @@ export const AdminDashboard: React.FC = () => {
     }
     setIsEditingUnit(false);
     setEditingUnit(null);
+  };
+
+  // --- NEW: Timeline Event Handlers ---
+  const handleTimelineEditClick = (event: TimelineEvent) => {
+    setEditingTimelineEvent(event);
+    setIsEditingTimelineEvent(true);
+    setTimeYear(event.year);
+    setTimeDate(event.date || '');
+    setTimeTitle(event.title);
+    setTimeSummary(event.summary);
+    setTimeBody(event.body || '');
+    setTimePeriod(event.period || '1911-1920');
+    setTimeSourceName(event.sourceName || '');
+    setTimeLocation(event.location || '');
+    setTimeThumbnail(event.thumbnail || '');
+  };
+
+  const handleCreateTimelineClick = () => {
+    setEditingTimelineEvent(null);
+    setIsEditingTimelineEvent(true);
+    setTimeYear('');
+    setTimeDate('');
+    setTimeTitle('');
+    setTimeSummary('');
+    setTimeBody('');
+    setTimePeriod('1911-1920');
+    setTimeSourceName('Ban Tuyên giáo Trung ương');
+    setTimeLocation('');
+    setTimeThumbnail('');
+  };
+
+  const handleTimelineSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!timeYear || !timeTitle || !timeSummary) {
+      addToast('Vui lòng điền đủ Năm, Tiêu đề và Tóm tắt sự kiện!', 'error');
+      return;
+    }
+    const payload = {
+      year: timeYear,
+      date: timeDate || undefined,
+      title: timeTitle,
+      summary: timeSummary,
+      body: timeBody || undefined,
+      period: timePeriod,
+      sourceName: timeSourceName || undefined,
+      location: timeLocation || undefined,
+      thumbnail: timeThumbnail || undefined,
+    };
+    if (editingTimelineEvent) {
+      updateTimelineEvent(editingTimelineEvent.id, payload);
+    } else {
+      addTimelineEvent(payload);
+    }
+    setIsEditingTimelineEvent(false);
+    setEditingTimelineEvent(null);
+  };
+
+  // --- NEW: Journey Point Handlers ---
+  const handleJourneyEditClick = (stop: JourneyStop) => {
+    setEditingJourneyPoint(stop);
+    setIsEditingJourneyPoint(true);
+    setStopLatLngLat(stop.latLngCoords[0].toString());
+    setStopLatLngLng(stop.latLngCoords[1].toString());
+    setStopName(stop.name);
+    setStopTime(stop.time);
+    setStopAge(stop.age);
+    setStopPseudonym(stop.pseudonym || '');
+    setStopActivity(stop.activity);
+    setStopDetails(stop.details || '');
+    setStopContinent(stop.continent || 'Asia');
+    setStopCountry(stop.country || '');
+    setStopSourceName(stop.sourceName || '');
+    setStopSourceUrl(stop.sourceUrl || '');
+  };
+
+  const handleCreateJourneyClick = () => {
+    setEditingJourneyPoint(null);
+    setIsEditingJourneyPoint(true);
+    setStopLatLngLat('10.84');
+    setStopLatLngLng('106.78');
+    setStopName('');
+    setStopTime('');
+    setStopAge(21);
+    setStopPseudonym('');
+    setStopActivity('');
+    setStopDetails('');
+    setStopContinent('Asia');
+    setStopCountry('');
+    setStopSourceName('Ban Tuyên giáo Đảng ủy');
+    setStopSourceUrl('');
+  };
+
+  const handleJourneySave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stopName || !stopTime || !stopActivity || !stopLatLngLat || !stopLatLngLng) {
+      addToast('Vui lòng điền đầy đủ các thông tin bắt buộc!', 'error');
+      return;
+    }
+    const lat = parseFloat(stopLatLngLat);
+    const lng = parseFloat(stopLatLngLng);
+    if (isNaN(lat) || isNaN(lng)) {
+      addToast('Tọa độ vĩ độ/kinh độ không hợp lệ!', 'error');
+      return;
+    }
+    const payload = {
+      latLngCoords: [lat, lng] as [number, number],
+      name: stopName,
+      time: stopTime,
+      age: Number(stopAge) || 21,
+      pseudonym: stopPseudonym || undefined,
+      activity: stopActivity,
+      details: stopDetails || undefined,
+      continent: stopContinent,
+      country: stopCountry,
+      sourceName: stopSourceName || undefined,
+      sourceUrl: stopSourceUrl || undefined,
+    };
+    if (editingJourneyPoint) {
+      updateJourneyPoint(editingJourneyPoint.id, payload);
+    } else {
+      addJourneyPoint(payload);
+    }
+    setIsEditingJourneyPoint(false);
+    setEditingJourneyPoint(null);
+  };
+
+  // --- NEW: Historical Work Handlers ---
+  const handleWorkEditClick = (work: HistoricalWork) => {
+    setEditingHistoricalWork(work);
+    setIsEditingHistoricalWork(true);
+    setWorkTitle(work.title);
+    setWorkPublishYear(work.publishYear);
+    setWorkLocation(work.location || '');
+    setWorkDescription(work.description);
+    setWorkQuote(work.quote || '');
+    setWorkLinkedStopId(work.linkedStopId || '');
+    setWorkThumbnail(work.thumbnail || '');
+    setWorkDisplayOrder(work.displayOrder || 1);
+  };
+
+  const handleCreateWorkClick = () => {
+    setEditingHistoricalWork(null);
+    setIsEditingHistoricalWork(true);
+    setWorkTitle('');
+    setWorkPublishYear('');
+    setWorkLocation('');
+    setWorkDescription('');
+    setWorkQuote('');
+    setWorkLinkedStopId('');
+    setWorkThumbnail('');
+    setWorkDisplayOrder(historicalWorks.length + 1);
+  };
+
+  const handleWorkSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workTitle || !workPublishYear || !workDescription) {
+      addToast('Vui lòng điền tiêu đề, năm xuất bản và tóm tắt tác phẩm!', 'error');
+      return;
+    }
+    const payload = {
+      title: workTitle,
+      publishYear: workPublishYear,
+      location: workLocation || undefined,
+      description: workDescription,
+      quote: workQuote || undefined,
+      linkedStopId: workLinkedStopId || undefined,
+      thumbnail: workThumbnail || undefined,
+      displayOrder: Number(workDisplayOrder) || 1,
+    };
+    if (editingHistoricalWork) {
+      updateHistoricalWork(editingHistoricalWork.id, payload);
+    } else {
+      addHistoricalWork(payload);
+    }
+    setIsEditingHistoricalWork(false);
+    setEditingHistoricalWork(null);
   };
 
   const handleHomepageSave = (e: React.FormEvent) => {
@@ -486,7 +716,7 @@ export const AdminDashboard: React.FC = () => {
             </button>
           )}
 
-          {!isEditing && !isEditingCategory && !isEditingUnit && activeTab === 'units' && isAdmin && (
+          {!isEditing && !isEditingCategory && !isEditingUnit && !isEditingTimelineEvent && !isEditingJourneyPoint && !isEditingHistoricalWork && activeTab === 'units' && isAdmin && (
             <button
               id="btn-add-new-unit"
               onClick={handleCreateUnitClick}
@@ -496,11 +726,44 @@ export const AdminDashboard: React.FC = () => {
               <span>Thêm đơn vị mới</span>
             </button>
           )}
+
+          {!isEditing && !isEditingCategory && !isEditingUnit && !isEditingTimelineEvent && !isEditingJourneyPoint && !isEditingHistoricalWork && activeTab === 'journey' && isAdmin && (
+            <button
+              id="btn-add-new-journey"
+              onClick={handleCreateJourneyClick}
+              className="px-4 py-2.5 bg-red-750 hover:bg-red-800 text-white text-xs font-black uppercase rounded-lg shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Plus size={15} />
+              <span>Thêm chặng dừng mới</span>
+            </button>
+          )}
+
+          {!isEditing && !isEditingCategory && !isEditingUnit && !isEditingTimelineEvent && !isEditingJourneyPoint && !isEditingHistoricalWork && activeTab === 'timeline' && isAdmin && (
+            <button
+              id="btn-add-new-timeline"
+              onClick={handleCreateTimelineClick}
+              className="px-4 py-2.5 bg-red-750 hover:bg-red-800 text-white text-xs font-black uppercase rounded-lg shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Plus size={15} />
+              <span>Thêm mốc lịch sử mới</span>
+            </button>
+          )}
+
+          {!isEditing && !isEditingCategory && !isEditingUnit && !isEditingTimelineEvent && !isEditingJourneyPoint && !isEditingHistoricalWork && activeTab === 'works' && isAdmin && (
+            <button
+              id="btn-add-new-work"
+              onClick={handleCreateWorkClick}
+              className="px-4 py-2.5 bg-red-750 hover:bg-red-800 text-white text-xs font-black uppercase rounded-lg shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Plus size={15} />
+              <span>Thêm tác phẩm mới</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* STATS TILES (Only when list view) */}
-      {!isEditing && !isEditingCategory && !isEditingUnit && (
+      {!isEditing && !isEditingCategory && !isEditingUnit && !isEditingTimelineEvent && !isEditingJourneyPoint && !isEditingHistoricalWork && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="bg-white border border-neutral-200 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
             <div className="p-3 bg-red-50 text-red-800 rounded-xl transition-colors group-hover:bg-red-100">
@@ -617,6 +880,46 @@ export const AdminDashboard: React.FC = () => {
               <Settings size={14} />
               <span>Hệ thống & Thương hiệu</span>
             </button>
+          )}
+
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setActiveTab('journey')}
+                className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
+                  activeTab === 'journey'
+                    ? 'bg-red-800 text-white shadow'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+                }`}
+              >
+                <Compass size={14} />
+                <span>Hành trình vạn dặm</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('timeline')}
+                className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
+                  activeTab === 'timeline'
+                    ? 'bg-red-800 text-white shadow'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+                }`}
+              >
+                <Clock size={14} />
+                <span>Dòng thời gian</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('works')}
+                className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
+                  activeTab === 'works'
+                    ? 'bg-red-800 text-white shadow'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+                }`}
+              >
+                <BookOpen size={14} />
+                <span>Tác phẩm tiêu biểu</span>
+              </button>
+            </>
           )}
 
           <button
@@ -1216,6 +1519,453 @@ export const AdminDashboard: React.FC = () => {
             >
               <Save size={13} />
               <span>Lưu đơn vị</span>
+            </button>
+          </div>
+        </form>
+      ) : isEditingTimelineEvent ? (
+        <form onSubmit={handleTimelineSave} className="bg-white border border-neutral-200 rounded-2xl p-6 md:p-8 shadow-md flex flex-col gap-6">
+          <div className="flex justify-between items-center border-b pb-4 border-neutral-200">
+            <button
+              type="button"
+              onClick={() => setIsEditingTimelineEvent(false)}
+              className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-md transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft size={13} />
+              <span>Quay lại danh sách</span>
+            </button>
+            <h3 className="text-sm font-black uppercase text-red-850">
+              {editingTimelineEvent ? `Cập nhật sự kiện: ${editingTimelineEvent.title}` : 'Thêm sự kiện lịch sử mới'}
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Năm sự kiện <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: 1911"
+                value={timeYear}
+                onChange={(e) => setTimeYear(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 outline-none p-2.5 rounded transition-all"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Ngày cụ thể (nếu có)</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: 05/06"
+                value={timeDate}
+                onChange={(e) => setTimeDate(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Giai đoạn lịch sử</label>
+              <select
+                value={timePeriod}
+                onChange={(e) => setTimePeriod(e.target.value as any)}
+                className="w-full text-xs font-bold border border-neutral-300 bg-neutral-50 rounded p-2.5 focus:outline-none"
+              >
+                <option value="1890-1910">1890 - 1910: Thời niên thiếu và học tập</option>
+                <option value="1911-1920">1911 - 1920: Ra đi tìm đường cứu nước</option>
+                <option value="1921-1930">1921 - 1930: Hoạt động quốc tế & Thành lập Đảng</option>
+                <option value="1931-1945">1931 - 1945: Đấu tranh giành độc lập dân tộc</option>
+                <option value="1946-1954">1946 - 1954: Kháng chiến chống thực dân Pháp</option>
+                <option value="1955-1969">1955 - 1969: Xây dựng CNXH & Kháng chiến chống Mỹ</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Tiêu đề mốc lịch sử <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: Người rời bến cảng Nhà Rồng ra đi cứu nước"
+                value={timeTitle}
+                onChange={(e) => setTimeTitle(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Địa điểm / Địa danh diễn ra</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Sài Gòn, Việt Nam"
+                value={timeLocation}
+                onChange={(e) => setTimeLocation(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Hình ảnh tư liệu URL</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: https://..."
+                value={timeThumbnail}
+                onChange={(e) => setTimeThumbnail(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Nguồn tư liệu kiểm chứng</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Giáo trình Lịch sử Đảng Cộng sản Việt Nam"
+                value={timeSourceName}
+                onChange={(e) => setTimeSourceName(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Mô tả tóm tắt sự kiện <span className="text-red-600">*</span></label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Nêu tóm lược cốt lõi diễn biến lịch sử..."
+                value={timeSummary}
+                onChange={(e) => setTimeSummary(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded resize-none"
+              ></textarea>
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Diễn biến chi tiết (Markdown / Text)</label>
+              <textarea
+                rows={6}
+                placeholder="Chi tiết về các sự kiện, nhân vật, bối cảnh lịch sử liên quan..."
+                value={timeBody}
+                onChange={(e) => setTimeBody(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              ></textarea>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-4 border-t pt-4 border-neutral-200">
+            <button
+              type="button"
+              onClick={() => setIsEditingTimelineEvent(false)}
+              className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs uppercase rounded-lg transition-colors"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-red-750 hover:bg-red-800 text-white font-black text-xs uppercase rounded-lg shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Save size={13} />
+              <span>Lưu sự kiện</span>
+            </button>
+          </div>
+        </form>
+      ) : isEditingJourneyPoint ? (
+        <form onSubmit={handleJourneySave} className="bg-white border border-neutral-200 rounded-2xl p-6 md:p-8 shadow-md flex flex-col gap-6">
+          <div className="flex justify-between items-center border-b pb-4 border-neutral-200">
+            <button
+              type="button"
+              onClick={() => setIsEditingJourneyPoint(false)}
+              className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-md transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft size={13} />
+              <span>Quay lại danh sách</span>
+            </button>
+            <h3 className="text-sm font-black uppercase text-red-850">
+              {editingJourneyPoint ? `Cập nhật chặng dừng: ${editingJourneyPoint.name}` : 'Thêm chặng hành trình vạn dặm mới'}
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Tên chặng dừng / Địa danh <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: Bến cảng Nhà Rồng, Sài Gòn"
+                value={stopName}
+                onChange={(e) => setStopName(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 outline-none p-2.5 rounded transition-all"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Thời gian diễn ra <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: 05/06/1911"
+                value={stopTime}
+                onChange={(e) => setStopTime(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Độ tuổi của Bác</label>
+              <input
+                type="number"
+                placeholder="21"
+                value={stopAge}
+                onChange={(e) => setStopAge(parseInt(e.target.value) || 21)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Tên gọi / Bí danh tại chặng này</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Nguyễn Văn Ba (Văn Ba)"
+                value={stopPseudonym}
+                onChange={(e) => setStopPseudonym(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Châu lục</label>
+              <select
+                value={stopContinent}
+                onChange={(e) => setStopContinent(e.target.value)}
+                className="w-full text-xs font-bold border border-neutral-300 bg-neutral-50 rounded p-2.5 focus:outline-none"
+              >
+                <option value="Asia">Châu Á (Asia)</option>
+                <option value="Europe">Châu Âu (Europe)</option>
+                <option value="Africa">Châu Phi (Africa)</option>
+                <option value="Americas">Châu Mỹ (Americas)</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Quốc gia <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: Việt Nam"
+                value={stopCountry}
+                onChange={(e) => setStopCountry(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Vĩ độ (Latitude) <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: 10.77"
+                value={stopLatLngLat}
+                onChange={(e) => setStopLatLngLat(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Kinh độ (Longitude) <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: 106.70"
+                value={stopLatLngLng}
+                onChange={(e) => setStopLatLngLng(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Tên nguồn/Cơ quan lưu trữ tư liệu</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Bảo tàng Hồ Chí Minh"
+                value={stopSourceName}
+                onChange={(e) => setStopSourceName(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Đường dẫn tài liệu kiểm chứng URL</label>
+              <input
+                type="text"
+                placeholder="https://..."
+                value={stopSourceUrl}
+                onChange={(e) => setStopSourceUrl(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Hoạt động cách mạng chính tại chặng <span className="text-red-600">*</span></label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Lao động trên tàu Đô đốc Latouche-Tréville, học tập, tìm hiểu đời sống nhân dân..."
+                value={stopActivity}
+                onChange={(e) => setStopActivity(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded resize-none"
+              ></textarea>
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Chi tiết lịch sử toàn diện (Markdown / Text)</label>
+              <textarea
+                rows={6}
+                placeholder="Bối cảnh, tiến trình hoạt động tại nước ngoài..."
+                value={stopDetails}
+                onChange={(e) => setStopDetails(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              ></textarea>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-4 border-t pt-4 border-neutral-200">
+            <button
+              type="button"
+              onClick={() => setIsEditingJourneyPoint(false)}
+              className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs uppercase rounded-lg transition-colors"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-red-750 hover:bg-red-800 text-white font-black text-xs uppercase rounded-lg shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Save size={13} />
+              <span>Lưu chặng hành trình</span>
+            </button>
+          </div>
+        </form>
+      ) : isEditingHistoricalWork ? (
+        <form onSubmit={handleWorkSave} className="bg-white border border-neutral-200 rounded-2xl p-6 md:p-8 shadow-md flex flex-col gap-6">
+          <div className="flex justify-between items-center border-b pb-4 border-neutral-200">
+            <button
+              type="button"
+              onClick={() => setIsEditingHistoricalWork(false)}
+              className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-md transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft size={13} />
+              <span>Quay lại danh sách</span>
+            </button>
+            <h3 className="text-sm font-black uppercase text-red-850">
+              {editingHistoricalWork ? `Cập nhật tác phẩm: ${editingHistoricalWork.title}` : 'Thêm tác phẩm tiêu biểu mới'}
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Tên tác phẩm tiêu biểu <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: Bản án chế độ thực dân Pháp"
+                value={workTitle}
+                onChange={(e) => setWorkTitle(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 outline-none p-2.5 rounded transition-all"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Năm xuất bản / hoàn thành <span className="text-red-600">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: 1925"
+                value={workPublishYear}
+                onChange={(e) => setWorkPublishYear(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Nơi viết / Nơi công bố tác phẩm</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Paris, Pháp"
+                value={workLocation}
+                onChange={(e) => setWorkLocation(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Thứ tự hiển thị</label>
+              <input
+                type="number"
+                placeholder="1"
+                value={workDisplayOrder}
+                onChange={(e) => setWorkDisplayOrder(parseInt(e.target.value) || 1)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Đường dẫn ảnh bìa / Hình ảnh minh họa URL</label>
+              <input
+                type="text"
+                placeholder="https://..."
+                value={workThumbnail}
+                onChange={(e) => setWorkThumbnail(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Liên kết với chặng hành trình</label>
+              <select
+                value={workLinkedStopId}
+                onChange={(e) => setWorkLinkedStopId(e.target.value)}
+                className="w-full text-xs font-bold border border-neutral-300 bg-neutral-50 rounded p-2.5 focus:outline-none"
+              >
+                <option value="">-- Không liên kết --</option>
+                {journeyPoints.map(jp => (
+                  <option key={jp.id} value={jp.id}>{jp.name} ({jp.time})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Trích đoạn đặc sắc / Lời trích tiêu biểu (Quote)</label>
+              <textarea
+                rows={3}
+                placeholder="Trích dẫn tiêu biểu trong tác phẩm..."
+                value={workQuote}
+                onChange={(e) => setWorkQuote(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded resize-none"
+              ></textarea>
+            </div>
+
+            <div className="flex flex-col gap-1 md:col-span-3">
+              <label className="text-[10px] uppercase font-black text-neutral-400">Tóm tắt nội dung & Giá trị lịch sử <span className="text-red-600">*</span></label>
+              <textarea
+                rows={5}
+                required
+                placeholder="Tóm tắt hoàn cảnh ra đời, nội dung cốt lõi và ý nghĩa lịch sử sâu sắc của tác phẩm..."
+                value={workDescription}
+                onChange={(e) => setWorkDescription(e.target.value)}
+                className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
+              ></textarea>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-4 border-t pt-4 border-neutral-200">
+            <button
+              type="button"
+              onClick={() => setIsEditingHistoricalWork(false)}
+              className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs uppercase rounded-lg transition-colors"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-red-750 hover:bg-red-800 text-white font-black text-xs uppercase rounded-lg shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Save size={13} />
+              <span>Lưu tác phẩm</span>
             </button>
           </div>
         </form>
@@ -1909,6 +2659,239 @@ export const AdminDashboard: React.FC = () => {
                 </button>
               </div>
             </form>
+          )}
+
+          {/* TAB: Journey Stops */}
+          {activeTab === 'journey' && isAdmin && (
+            <div className="flex flex-col">
+              <div className="p-4 border-b border-neutral-150 bg-neutral-50/50 flex justify-between items-center">
+                <span className="text-xs text-neutral-400 font-bold uppercase">Hành trình vạn dặm - {journeyPoints.length} chặng dừng chân</span>
+                <span className="text-xs font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-100">Dữ liệu bản đồ thời gian</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-neutral-100 text-neutral-500 font-extrabold uppercase border-b border-neutral-200">
+                      <th className="p-4">Chặng dừng chân</th>
+                      <th className="p-4">Thời gian</th>
+                      <th className="p-4 text-center">Tuổi của Bác</th>
+                      <th className="p-4">Bí danh</th>
+                      <th className="p-4">Hoạt động chính</th>
+                      <th className="p-4 text-center">Tọa độ Map</th>
+                      <th className="p-4 text-center">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-150">
+                    {journeyPoints.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-neutral-500 font-semibold italic">
+                          Chưa có chặng hành trình nào được tạo lập.
+                        </td>
+                      </tr>
+                    ) : (
+                      journeyPoints.map((stop) => (
+                        <tr key={stop.id} className="hover:bg-neutral-50/50 transition-colors">
+                          <td className="p-4 font-black text-neutral-900">{stop.name}</td>
+                          <td className="p-4 text-neutral-600 font-bold">{stop.time}</td>
+                          <td className="p-4 text-center text-neutral-500 font-black">{stop.age}</td>
+                          <td className="p-4 text-neutral-500 italic">{stop.pseudonym || 'Không có'}</td>
+                          <td className="p-4 max-w-xs text-neutral-700 font-medium">
+                            <p className="line-clamp-2">{stop.activity}</p>
+                          </td>
+                          <td className="p-4 text-center text-neutral-500 font-mono text-[10px]">{stop.latLngCoords.join(', ')}</td>
+                          <td className="p-4">
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => handleJourneyEditClick(stop)}
+                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                title="Sửa chặng hành trình"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Bạn có chắc muốn xóa chặng dừng chân "${stop.name}"?`)) {
+                                    deleteJourneyPoint(stop.id);
+                                  }
+                                }}
+                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                title="Xóa"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Historical Timeline */}
+          {activeTab === 'timeline' && isAdmin && (
+            <div className="flex flex-col">
+              <div className="p-4 border-b border-neutral-150 bg-neutral-50/50 flex justify-between items-center">
+                <span className="text-xs text-neutral-400 font-bold uppercase">Dòng thời gian lịch sử - {timelineEvents.length} mốc sự kiện</span>
+                <span className="text-xs font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-100">Trình tự biên niên sử</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-neutral-100 text-neutral-500 font-extrabold uppercase border-b border-neutral-200">
+                      <th className="p-4 w-28 text-center">Năm (Ngày)</th>
+                      <th className="p-4">Tiêu đề mốc sự kiện</th>
+                      <th className="p-4">Giai đoạn</th>
+                      <th className="p-4">Địa điểm</th>
+                      <th className="p-4 max-w-sm">Tóm tắt diễn biến chính</th>
+                      <th className="p-4 text-center">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-150">
+                    {timelineEvents.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-neutral-500 font-semibold italic">
+                          Chưa có mốc thời gian lịch sử nào được khởi tạo.
+                        </td>
+                      </tr>
+                    ) : (
+                      [...timelineEvents]
+                        .sort((a, b) => {
+                          const yearA = parseInt(a.year) || 0;
+                          const yearB = parseInt(b.year) || 0;
+                          return yearA - yearB;
+                        })
+                        .map((event) => (
+                          <tr key={event.id} className="hover:bg-neutral-50/50 transition-colors">
+                            <td className="p-4 text-center">
+                              <span className="px-2 py-1 bg-red-50 text-red-800 font-black rounded border border-red-100">
+                                {event.year} {event.date ? `(${event.date})` : ''}
+                              </span>
+                            </td>
+                            <td className="p-4 font-black text-neutral-900">{event.title}</td>
+                            <td className="p-4 text-neutral-500 font-bold">{event.period}</td>
+                            <td className="p-4 text-neutral-600 font-semibold">{event.location || 'Chưa ghi nhận'}</td>
+                            <td className="p-4 max-w-sm text-neutral-700 font-medium">
+                              <p className="line-clamp-2">{event.summary}</p>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => handleTimelineEditClick(event)}
+                                  className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                  title="Chỉnh sửa sự kiện"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Bạn có chắc muốn xóa mốc sự kiện "${event.title}"?`)) {
+                                      deleteTimelineEvent(event.id);
+                                    }
+                                  }}
+                                  className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                  title="Xóa"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Historical Works */}
+          {activeTab === 'works' && isAdmin && (
+            <div className="flex flex-col">
+              <div className="p-4 border-b border-neutral-150 bg-neutral-50/50 flex justify-between items-center">
+                <span className="text-xs text-neutral-400 font-bold uppercase">Tác phẩm tiêu biểu - {historicalWorks.length} tác phẩm lý luận</span>
+                <span className="text-xs font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-100">Danh mục Thư viện số</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-neutral-100 text-neutral-500 font-extrabold uppercase border-b border-neutral-200">
+                      <th className="p-4 text-center w-20">Ảnh bìa</th>
+                      <th className="p-4">Tên tác phẩm</th>
+                      <th className="p-4 text-center w-28">Năm xuất bản</th>
+                      <th className="p-4">Nơi sáng tác</th>
+                      <th className="p-4 max-w-xs">Tóm tắt nội dung & ý nghĩa</th>
+                      <th className="p-4 text-center">Thứ tự</th>
+                      <th className="p-4 text-center">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-150">
+                    {historicalWorks.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-neutral-500 font-semibold italic">
+                          Chưa có tác phẩm tiêu biểu nào được tạo dựng.
+                        </td>
+                      </tr>
+                    ) : (
+                      [...historicalWorks]
+                        .sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1))
+                        .map((work) => (
+                          <tr key={work.id} className="hover:bg-neutral-50/50 transition-colors">
+                            <td className="p-2 text-center">
+                              <div className="w-10 h-14 mx-auto border bg-neutral-100 flex items-center justify-center overflow-hidden rounded shadow-sm">
+                                {work.thumbnail ? (
+                                  <img 
+                                    src={work.thumbnail} 
+                                    alt={work.title} 
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <BookOpen size={18} className="text-neutral-400" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 font-black text-neutral-900">{work.title}</td>
+                            <td className="p-4 text-center text-neutral-600 font-bold">{work.publishYear}</td>
+                            <td className="p-4 text-neutral-500 font-semibold">{work.location || 'Chưa rõ'}</td>
+                            <td className="p-4 max-w-xs text-neutral-700 font-medium">
+                              <p className="line-clamp-2">{work.description}</p>
+                            </td>
+                            <td className="p-4 text-center text-neutral-500 font-black">{work.displayOrder}</td>
+                            <td className="p-4">
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => handleWorkEditClick(work)}
+                                  className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                  title="Chỉnh sửa tác phẩm"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Bạn có chắc muốn xóa tác phẩm "${work.title}"?`)) {
+                                      deleteHistoricalWork(work.id);
+                                    }
+                                  }}
+                                  className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                  title="Xóa"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
         </div>

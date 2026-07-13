@@ -127,6 +127,84 @@
         "welcomeText": { "type": "string" }
       },
       "required": ["siteName", "subtitle", "logo", "contactInfo", "footerText"]
+    },
+    "TimelineEvent": {
+      "title": "TimelineEvent",
+      "description": "A historic chronological event of Uncle Ho's life or Vietnamese history",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "year": { "type": "number" },
+        "period": { "type": "string", "enum": ["Quê hương và tuổi thơ", "Hành trình tìm đường cứu nước", "Hoạt động cách mạng", "Thành lập Đảng", "Cách mạng Tháng Tám", "Kháng chiến, kiến quốc", "Xây dựng đất nước", "Di sản tư tưởng, đạo đức, phong cách"] },
+        "summary": { "type": "string" },
+        "body": { "type": "string" },
+        "location": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "thumbnail": { "type": "string" },
+        "sourceName": { "type": "string" },
+        "displayOrder": { "type": "number" },
+        "status": { "type": "string", "enum": ["Hiển thị", "Ẩn"] }
+      },
+      "required": ["id", "title", "date", "year", "period", "summary", "body", "displayOrder", "status"]
+    },
+    "JourneyStop": {
+      "title": "JourneyStop",
+      "description": "An interactive checkpoint stop during President Ho Chi Minh's 30-year journey (1911-1941)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "time": { "type": "string" },
+        "country": { "type": "string" },
+        "continent": { "type": "string", "enum": ["Asia", "Europe", "Africa", "America"] },
+        "age": { "type": "number" },
+        "pseudonym": { "type": "string" },
+        "activity": { "type": "string" },
+        "coords": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "latLng": { "type": "string" },
+        "latLngCoords": { "type": "array" },
+        "thumbnail": { "type": "string" },
+        "quote": { "type": "string" },
+        "sourceName": { "type": "string" },
+        "keyWork": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "desc": { "type": "string" }
+          }
+        }
+      },
+      "required": ["id", "name", "time", "country", "continent", "age", "pseudonym", "activity", "coords", "latLng", "latLngCoords", "thumbnail", "sourceName"]
+    },
+    "HistoricalWork": {
+      "title": "HistoricalWork",
+      "description": "A classic revolutionary literary work authored by President Ho Chi Minh",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "slug": { "type": "string" },
+        "publishYear": { "type": "string" },
+        "summary": { "type": "string" },
+        "content": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "readOnlineUrl": { "type": "string" },
+        "displayOrder": { "type": "number" },
+        "status": { "type": "string", "enum": ["Hiển thị", "Ẩn"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "slug", "publishYear", "summary", "content", "thumbnail", "displayOrder", "status", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -153,6 +231,18 @@
     "settings/site": {
       "schema": "SiteSettings",
       "description": "The unique document for global site configuration"
+    },
+    "timelineEvents/{eventId}": {
+      "schema": "TimelineEvent",
+      "description": "Chronological events list of Uncle Ho"
+    },
+    "journeyStops/{stopId}": {
+      "schema": "JourneyStop",
+      "description": "Interactive stops on Uncle Ho's 30-year journey"
+    },
+    "historicalWorks/{workId}": {
+      "schema": "HistoricalWork",
+      "description": "Classic outstanding works written by President Ho Chi Minh"
     }
   }
 }

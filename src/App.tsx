@@ -30,6 +30,11 @@ import { NotFoundPage } from './pages/NotFoundPage';
 const AppContent: React.FC = () => {
   const { currentPath } = useApp();
 
+  // Scroll to top of the page on route change to prevent jumping or stuck scrolling at the bottom
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as any });
+  }, [currentPath]);
+
   // Route routing matching helper
   const renderPage = () => {
     if (currentPath === 'home') {
