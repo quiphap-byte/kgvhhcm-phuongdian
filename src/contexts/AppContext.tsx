@@ -17,7 +17,8 @@ import {
   setDoc, 
   updateDoc, 
   deleteDoc, 
-  onSnapshot 
+  onSnapshot,
+  getDoc
 } from 'firebase/firestore';
 import { 
   GoogleAuthProvider, 
@@ -270,94 +271,117 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  // --- DATABASE INITIAL SEEDING ---
+  useEffect(() => {
+    const checkAndSeedDatabase = async () => {
+      if (!hasWritePermission()) return;
+      try {
+        const initDocRef = doc(db, 'settings', 'init_marker');
+        const initSnap = await getDoc(initDocRef);
+        if (!initSnap.exists()) {
+          console.log("Database not initialized. Seeding initial data...");
+          // Seed site settings
+          await setDoc(doc(db, 'settings', 'site'), cleanUndefined(defaultSiteSettings));
+          
+          // Seed categories
+          for (const item of mockCategories) {
+            await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(() => {});
+          }
+          
+          // Seed units
+          for (const item of mockUnits) {
+            await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(() => {});
+          }
+          
+          // Seed contents
+          for (const item of mockContents) {
+            await setDoc(doc(db, 'contents', item.id), cleanUndefined(item)).catch(() => {});
+          }
+          
+          // Seed mediaLibrary
+          for (const item of mockMediaLibrary) {
+            await setDoc(doc(db, 'mediaLibrary', item.id), cleanUndefined(item)).catch(() => {});
+          }
+          
+          // Seed timelineEvents
+          for (const item of mockTimelineEvents) {
+            await setDoc(doc(db, 'timelineEvents', item.id), cleanUndefined(item)).catch(() => {});
+          }
+          
+          // Seed journeyStops
+          for (const item of mockJourneyPoints) {
+            await setDoc(doc(db, 'journeyStops', item.id), cleanUndefined(item)).catch(() => {});
+          }
+          
+          // Seed historicalWorks
+          for (const item of mockHistoricalWorks) {
+            await setDoc(doc(db, 'historicalWorks', item.id), cleanUndefined(item)).catch(() => {});
+          }
+          
+          // Mark as initialized
+          await setDoc(initDocRef, { seeded: true, seededAt: new Date().toISOString() });
+          console.log("Database seeding completed successfully!");
+        }
+      } catch (err) {
+        console.error("Error seeding database:", err);
+      }
+    };
+
+    checkAndSeedDatabase();
+  }, []);
+
   useEffect(() => {
     // 1. Categories
-    const unsubCategories = onSnapshot(collection(db, 'categories'), async (snapshot) => {
-      if (!snapshot.empty) {
-        const list: Category[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as Category);
-        });
-        setCategories(list);
-      } else {
-        if (hasWritePermission()) {
-          for (const item of mockCategories) {
-            await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `categories/${item.id}`));
-          }
-        }
-        setCategories(mockCategories);
-      }
+    const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
+      const list: Category[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Category);
+      });
+      list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      setCategories(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'categories');
     });
 
     // 2. Units
-    const unsubUnits = onSnapshot(collection(db, 'units'), async (snapshot) => {
-      if (!snapshot.empty) {
-        const list: Unit[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as Unit);
-        });
-        setUnits(list);
-      } else {
-        if (hasWritePermission()) {
-          for (const item of mockUnits) {
-            await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `units/${item.id}`));
-          }
-        }
-        setUnits(mockUnits);
-      }
+    const unsubUnits = onSnapshot(collection(db, 'units'), (snapshot) => {
+      const list: Unit[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Unit);
+      });
+      list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      setUnits(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'units');
     });
 
     // 3. Contents
-    const unsubContents = onSnapshot(collection(db, 'contents'), async (snapshot) => {
-      if (snapshot.empty) {
-        if (hasWritePermission()) {
-          for (const item of mockContents) {
-            await setDoc(doc(db, 'contents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `contents/${item.id}`));
-          }
-        }
-      } else {
-        const list: Content[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as Content);
-        });
-        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setContents(list);
-      }
+    const unsubContents = onSnapshot(collection(db, 'contents'), (snapshot) => {
+      const list: Content[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as Content);
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setContents(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'contents');
     });
 
     // 4. Media Library
-    const unsubMedia = onSnapshot(collection(db, 'mediaLibrary'), async (snapshot) => {
-      if (snapshot.empty) {
-        if (hasWritePermission()) {
-          for (const item of mockMediaLibrary) {
-            await setDoc(doc(db, 'mediaLibrary', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `mediaLibrary/${item.id}`));
-          }
-        }
-      } else {
-        const list: MediaItem[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as MediaItem);
-        });
-        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setMediaLibrary(list);
-      }
+    const unsubMedia = onSnapshot(collection(db, 'mediaLibrary'), (snapshot) => {
+      const list: MediaItem[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as MediaItem);
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setMediaLibrary(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'mediaLibrary');
     });
 
     // 5. Settings
-    const unsubSettings = onSnapshot(doc(db, 'settings', 'site'), async (docSnap) => {
-      if (!docSnap.exists()) {
-        if (hasWritePermission()) {
-          await setDoc(doc(db, 'settings', 'site'), cleanUndefined(defaultSiteSettings)).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings/site'));
-        }
-      } else {
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
+      if (docSnap.exists()) {
         setSettings(docSnap.data() as SiteSettings);
       }
     }, (error) => {
@@ -365,68 +389,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     // 6. Timeline Events
-    const unsubTimeline = onSnapshot(collection(db, 'timelineEvents'), async (snapshot) => {
-      if (!snapshot.empty) {
-        const list: TimelineEvent[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as TimelineEvent);
-        });
-        list.sort((a, b) => (a.year || 0) - (b.year || 0));
-        setTimelineEvents(list);
-      } else {
-        if (hasWritePermission()) {
-          for (const item of mockTimelineEvents) {
-            await setDoc(doc(db, 'timelineEvents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `timelineEvents/${item.id}`));
-          }
-        }
-        setTimelineEvents(mockTimelineEvents);
-      }
+    const unsubTimeline = onSnapshot(collection(db, 'timelineEvents'), (snapshot) => {
+      const list: TimelineEvent[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as TimelineEvent);
+      });
+      list.sort((a, b) => (a.year || 0) - (b.year || 0));
+      setTimelineEvents(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'timelineEvents');
     });
 
     // 7. Journey Stops
-    const unsubJourney = onSnapshot(collection(db, 'journeyStops'), async (snapshot) => {
-      if (!snapshot.empty) {
-        const list: JourneyStop[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as JourneyStop);
-        });
-        list.sort((a, b) => {
-          const numA = parseInt(a.id.replace('stop-', '').replace('jp-', '')) || 0;
-          const numB = parseInt(b.id.replace('stop-', '').replace('jp-', '')) || 0;
-          return numA - numB;
-        });
-        setJourneyPoints(list);
-      } else {
-        if (hasWritePermission()) {
-          for (const item of mockJourneyPoints) {
-            await setDoc(doc(db, 'journeyStops', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `journeyStops/${item.id}`));
-          }
-        }
-        setJourneyPoints(mockJourneyPoints);
-      }
+    const unsubJourney = onSnapshot(collection(db, 'journeyStops'), (snapshot) => {
+      const list: JourneyStop[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as JourneyStop);
+      });
+      list.sort((a, b) => {
+        const numA = parseInt(a.id.replace('stop-', '').replace('jp-', '')) || 0;
+        const numB = parseInt(b.id.replace('stop-', '').replace('jp-', '')) || 0;
+        return numA - numB;
+      });
+      setJourneyPoints(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'journeyStops');
     });
 
     // 8. Historical Works
-    const unsubWorks = onSnapshot(collection(db, 'historicalWorks'), async (snapshot) => {
-      if (!snapshot.empty) {
-        const list: HistoricalWork[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as HistoricalWork);
-        });
-        list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-        setHistoricalWorks(list);
-      } else {
-        if (hasWritePermission()) {
-          for (const item of mockHistoricalWorks) {
-            await setDoc(doc(db, 'historicalWorks', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `historicalWorks/${item.id}`));
-          }
-        }
-        setHistoricalWorks(mockHistoricalWorks);
-      }
+    const unsubWorks = onSnapshot(collection(db, 'historicalWorks'), (snapshot) => {
+      const list: HistoricalWork[] = [];
+      snapshot.forEach((d) => {
+        list.push(d.data() as HistoricalWork);
+      });
+      list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      setHistoricalWorks(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'historicalWorks');
     });
