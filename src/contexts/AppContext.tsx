@@ -401,14 +401,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const missingEvents = mockTimelineEvents.filter(item => !existingIds.has(item.id));
 
       if (missingEvents.length > 0) {
+        const merged = [...list, ...missingEvents];
+        merged.sort((a, b) => (a.year || 0) - (b.year || 0));
+        setTimelineEvents(merged);
+
         if (hasWritePermission()) {
           for (const item of missingEvents) {
             await setDoc(doc(db, 'timelineEvents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `timelineEvents/${item.id}`));
           }
-        } else {
-          const merged = [...list, ...missingEvents];
-          merged.sort((a, b) => (a.year || 0) - (b.year || 0));
-          setTimelineEvents(merged);
         }
       } else {
         list.sort((a, b) => (a.year || 0) - (b.year || 0));
@@ -431,18 +431,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const missingStops = mockJourneyPoints.filter(item => !existingIds.has(item.id));
 
       if (missingStops.length > 0) {
+        const merged = [...list, ...missingStops];
+        merged.sort((a, b) => {
+          const numA = parseInt(a.id.replace('stop-', '').replace('jp-', '')) || 0;
+          const numB = parseInt(b.id.replace('stop-', '').replace('jp-', '')) || 0;
+          return numA - numB;
+        });
+        setJourneyPoints(merged);
+
         if (hasWritePermission()) {
           for (const item of missingStops) {
             await setDoc(doc(db, 'journeyStops', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `journeyStops/${item.id}`));
           }
-        } else {
-          const merged = [...list, ...missingStops];
-          merged.sort((a, b) => {
-            const numA = parseInt(a.id.replace('stop-', '').replace('jp-', '')) || 0;
-            const numB = parseInt(b.id.replace('stop-', '').replace('jp-', '')) || 0;
-            return numA - numB;
-          });
-          setJourneyPoints(merged);
         }
       } else {
         list.sort((a, b) => {
@@ -469,14 +469,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const missingWorks = mockHistoricalWorks.filter(item => !existingIds.has(item.id));
 
       if (missingWorks.length > 0) {
+        const merged = [...list, ...missingWorks];
+        merged.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        setHistoricalWorks(merged);
+
         if (hasWritePermission()) {
           for (const item of missingWorks) {
             await setDoc(doc(db, 'historicalWorks', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `historicalWorks/${item.id}`));
           }
-        } else {
-          const merged = [...list, ...missingWorks];
-          merged.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-          setHistoricalWorks(merged);
         }
       } else {
         list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
