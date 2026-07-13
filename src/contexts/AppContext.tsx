@@ -18,7 +18,10 @@ import {
   updateDoc, 
   deleteDoc, 
   onSnapshot,
-  getDoc
+  getDoc,
+  getDocs,
+  query,
+  limit
 } from 'firebase/firestore';
 import { 
   GoogleAuthProvider, 
@@ -279,51 +282,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const initDocRef = doc(db, 'settings', 'init_marker');
         const initSnap = await getDoc(initDocRef);
         if (!initSnap.exists()) {
-          console.log("Database not initialized. Seeding initial data...");
-          // Seed site settings
-          await setDoc(doc(db, 'settings', 'site'), cleanUndefined(defaultSiteSettings));
+          console.log("Database not initialized. Seeding initial data safely...");
           
-          // Seed categories
-          for (const item of mockCategories) {
-            await setDoc(doc(db, 'categories', item.id), cleanUndefined(item)).catch(() => {});
+          // Helper to seed only if collection is empty
+          const seedIfEmpty = async (collectionName: string, mockList: any[]) => {
+            const colRef = collection(db, collectionName);
+            const q = query(colRef, limit(1));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+              console.log(`Seeding empty collection: ${collectionName}`);
+              for (const item of mockList) {
+                await setDoc(doc(db, collectionName, item.id), cleanUndefined(item)).catch(() => {});
+              }
+            } else {
+              console.log(`Collection ${collectionName} already has data, skipping seeding.`);
+            }
+          };
+
+          // Seed site settings only if not existing
+          const siteDocRef = doc(db, 'settings', 'site');
+          const siteSnap = await getDoc(siteDocRef);
+          if (!siteSnap.exists()) {
+            await setDoc(siteDocRef, cleanUndefined(defaultSiteSettings)).catch(() => {});
           }
           
-          // Seed units
-          for (const item of mockUnits) {
-            await setDoc(doc(db, 'units', item.id), cleanUndefined(item)).catch(() => {});
-          }
-          
-          // Seed contents
-          for (const item of mockContents) {
-            await setDoc(doc(db, 'contents', item.id), cleanUndefined(item)).catch(() => {});
-          }
-          
-          // Seed mediaLibrary
-          for (const item of mockMediaLibrary) {
-            await setDoc(doc(db, 'mediaLibrary', item.id), cleanUndefined(item)).catch(() => {});
-          }
-          
-          // Seed timelineEvents
-          for (const item of mockTimelineEvents) {
-            await setDoc(doc(db, 'timelineEvents', item.id), cleanUndefined(item)).catch(() => {});
-          }
-          
-          // Seed journeyStops
-          for (const item of mockJourneyPoints) {
-            await setDoc(doc(db, 'journeyStops', item.id), cleanUndefined(item)).catch(() => {});
-          }
-          
-          // Seed historicalWorks
-          for (const item of mockHistoricalWorks) {
-            await setDoc(doc(db, 'historicalWorks', item.id), cleanUndefined(item)).catch(() => {});
-          }
+          // Seed collections only if empty
+          await seedIfEmpty('categories', mockCategories);
+          await seedIfEmpty('units', mockUnits);
+          await seedIfEmpty('contents', mockContents);
+          await seedIfEmpty('mediaLibrary', mockMediaLibrary);
+          await seedIfEmpty('timelineEvents', mockTimelineEvents);
+          await seedIfEmpty('journeyStops', mockJourneyPoints);
+          await seedIfEmpty('historicalWorks', mockHistoricalWorks);
           
           // Mark as initialized
           await setDoc(initDocRef, { seeded: true, seededAt: new Date().toISOString() });
-          console.log("Database seeding completed successfully!");
+          console.log("Database seeding completed safely!");
         }
       } catch (err) {
-        console.error("Error seeding database:", err);
+        console.error("Error seeding database safely:", err);
       }
     };
 
