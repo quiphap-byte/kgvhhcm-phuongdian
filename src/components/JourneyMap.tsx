@@ -13,28 +13,10 @@ import {
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { JourneyStop } from '../types';
+import { mockJourneyPoints } from '../data/mockData';
 
-// Define rich 11 checkpoints for Uncle Ho's 30-year journey (1911 - 1941)
-interface JourneyStop {
-  id: string;
-  name: string;
-  time: string;
-  country: string;
-  continent: 'Asia' | 'Europe' | 'Africa' | 'America';
-  age: number;
-  pseudonym: string;
-  activity: string;
-  coords: { x: number; y: number }; // SVG map coordinates (1000 x 500)
-  latLng: string;
-  latLngCoords: [number, number]; // Exact coordinates for real interactive map
-  thumbnail: string;
-  quote?: string;
-  sourceName: string;
-  keyWork?: {
-    title: string;
-    desc: string;
-  };
-}
+// Define rich checkpoints for Uncle Ho's 30-year journey (1911 - 1941)
 
 const JOURNEY_STOPS: JourneyStop[] = [
   {
@@ -224,7 +206,7 @@ export const JourneyMap: React.FC = () => {
   const { getAdjustedTextClass, journeyPoints, historicalWorks } = useApp();
   
   // Safe dynamic arrays with static fallback
-  const stops = journeyPoints && journeyPoints.length > 0 ? journeyPoints : JOURNEY_STOPS;
+  const stops = journeyPoints && journeyPoints.length > 0 ? journeyPoints : mockJourneyPoints;
   const works = historicalWorks && historicalWorks.length > 0 ? historicalWorks : [];
   
   // Tab state: 'map' | 'timeline' | 'documents'
@@ -240,6 +222,7 @@ export const JourneyMap: React.FC = () => {
 
   // Focus linked stop from Digital Library on mount
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as any });
     const focusStop = sessionStorage.getItem('kgvh_focus_stop');
     if (focusStop) {
       setSelectedStopId(focusStop);
@@ -625,9 +608,9 @@ export const JourneyMap: React.FC = () => {
             {/* Quick navigator header */}
             <div className="flex flex-col gap-1 pb-3 border-b border-neutral-100 shrink-0">
               <span className="text-[9px] uppercase font-black text-red-800 tracking-wider">Chọn nhanh mốc lịch sử</span>
-              <h4 className="text-xs font-extrabold text-neutral-800">11 Chặng đường bôn ba cứu nước:</h4>
+              <h4 className="text-xs font-extrabold text-neutral-800">22 Mốc lịch sử hành trình cứu nước:</h4>
               
-              {/* Row of 11 circles */}
+              {/* Row of 22 circles */}
               <div className="flex flex-wrap gap-1.5 items-center mt-2">
                 {stops.map((stop, idx) => {
                   const isActive = stop.id === selectedStopId;
@@ -802,8 +785,8 @@ export const JourneyMap: React.FC = () => {
             {/* Stops Map */}
             {stops.map((stop, index) => {
               // Identify period titles to render inside the timeline dynamically
-              const showPeriod2Marker = index === 6; // Stop 7: Moscow 1923
-              const showPeriod3Marker = index === 9; // Stop 10: Hong Kong 1930
+              const showPeriod2Marker = index === 11; // Stop 12: Paris 1921 - 1923
+              const showPeriod3Marker = index === 18; // Stop 19: Hong Kong 1931 - 1933 Tống Văn Sơ
               
               return (
                 <React.Fragment key={stop.id}>

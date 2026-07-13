@@ -174,7 +174,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [journeyPoints, setJourneyPoints] = useState<JourneyStop[]>(() => {
-    const saved = localStorage.getItem('kgvh_journey_stops');
+    const saved = localStorage.getItem('kgvh_journey_stops_v3');
     return saved ? JSON.parse(saved) : mockJourneyPoints;
   });
 
@@ -390,17 +390,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 6. Timeline Events
     const unsubTimeline = onSnapshot(collection(db, 'timelineEvents'), async (snapshot) => {
-      if (snapshot.empty) {
+      const list: TimelineEvent[] = [];
+      const existingIds = new Set<string>();
+      snapshot.forEach((d) => {
+        const item = d.data() as TimelineEvent;
+        list.push(item);
+        existingIds.add(item.id);
+      });
+
+      const missingEvents = mockTimelineEvents.filter(item => !existingIds.has(item.id));
+
+      if (missingEvents.length > 0) {
         if (hasWritePermission()) {
-          for (const item of mockTimelineEvents) {
+          for (const item of missingEvents) {
             await setDoc(doc(db, 'timelineEvents', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `timelineEvents/${item.id}`));
           }
+        } else {
+          const merged = [...list, ...missingEvents];
+          merged.sort((a, b) => (a.year || 0) - (b.year || 0));
+          setTimelineEvents(merged);
         }
       } else {
-        const list: TimelineEvent[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as TimelineEvent);
-        });
         list.sort((a, b) => (a.year || 0) - (b.year || 0));
         setTimelineEvents(list);
       }
@@ -410,17 +420,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 7. Journey Stops
     const unsubJourney = onSnapshot(collection(db, 'journeyStops'), async (snapshot) => {
-      if (snapshot.empty) {
+      const list: JourneyStop[] = [];
+      const existingIds = new Set<string>();
+      snapshot.forEach((d) => {
+        const item = d.data() as JourneyStop;
+        list.push(item);
+        existingIds.add(item.id);
+      });
+
+      const missingStops = mockJourneyPoints.filter(item => !existingIds.has(item.id));
+
+      if (missingStops.length > 0) {
         if (hasWritePermission()) {
-          for (const item of mockJourneyPoints) {
+          for (const item of missingStops) {
             await setDoc(doc(db, 'journeyStops', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `journeyStops/${item.id}`));
           }
+        } else {
+          const merged = [...list, ...missingStops];
+          merged.sort((a, b) => {
+            const numA = parseInt(a.id.replace('stop-', '').replace('jp-', '')) || 0;
+            const numB = parseInt(b.id.replace('stop-', '').replace('jp-', '')) || 0;
+            return numA - numB;
+          });
+          setJourneyPoints(merged);
         }
       } else {
-        const list: JourneyStop[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as JourneyStop);
-        });
         list.sort((a, b) => {
           const numA = parseInt(a.id.replace('stop-', '').replace('jp-', '')) || 0;
           const numB = parseInt(b.id.replace('stop-', '').replace('jp-', '')) || 0;
@@ -434,17 +458,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 8. Historical Works
     const unsubWorks = onSnapshot(collection(db, 'historicalWorks'), async (snapshot) => {
-      if (snapshot.empty) {
+      const list: HistoricalWork[] = [];
+      const existingIds = new Set<string>();
+      snapshot.forEach((d) => {
+        const item = d.data() as HistoricalWork;
+        list.push(item);
+        existingIds.add(item.id);
+      });
+
+      const missingWorks = mockHistoricalWorks.filter(item => !existingIds.has(item.id));
+
+      if (missingWorks.length > 0) {
         if (hasWritePermission()) {
-          for (const item of mockHistoricalWorks) {
+          for (const item of missingWorks) {
             await setDoc(doc(db, 'historicalWorks', item.id), cleanUndefined(item)).catch(err => handleFirestoreError(err, OperationType.WRITE, `historicalWorks/${item.id}`));
           }
+        } else {
+          const merged = [...list, ...missingWorks];
+          merged.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+          setHistoricalWorks(merged);
         }
       } else {
-        const list: HistoricalWork[] = [];
-        snapshot.forEach((d) => {
-          list.push(d.data() as HistoricalWork);
-        });
         list.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         setHistoricalWorks(list);
       }
@@ -690,7 +724,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [timelineEvents]);
 
   useEffect(() => {
-    localStorage.setItem('kgvh_journey_stops', JSON.stringify(journeyPoints));
+    localStorage.setItem('kgvh_journey_stops_v3', JSON.stringify(journeyPoints));
   }, [journeyPoints]);
 
   useEffect(() => {

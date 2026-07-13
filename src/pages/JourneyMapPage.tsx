@@ -38,7 +38,7 @@ export const JourneyMapPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-4 text-[11px] text-amber-200 font-bold mt-2 pt-2 border-t border-white/10">
             <div className="flex items-center gap-1">
               <MapPin size={12} className="text-amber-400" />
-              <span>11 mốc tọa độ chính xác</span>
+              <span>22 mốc tọa độ chính xác</span>
             </div>
           </div>
         </div>
