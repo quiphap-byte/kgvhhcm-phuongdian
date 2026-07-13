@@ -255,8 +255,9 @@ export const JourneyMap: React.FC = () => {
       attributionControl: false, // Completely disable the Leaflet watermark & attribution
     });
 
-    // Light theme tile layer (CartoDB Positron)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    // Light theme tile layer without default geographic labels (CartoDB Positron No Labels)
+    // This naturally prevents underlying cluttered or foreign labels from rendering, keeping the map clean and simple.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd',
       maxZoom: 20
     }).addTo(leafletMap);
@@ -296,24 +297,6 @@ export const JourneyMap: React.FC = () => {
       iconAnchor: [10, 5],
     });
     L.marker([8.6333, 111.9167], { icon: truongSaIcon, interactive: false }).addTo(leafletMap);
-
-    // Cover any underlying "South China Sea" label with sea-blue patriotic "Biển Đông (Việt Nam)" overlay
-    const bienDongIcon = L.divIcon({
-      html: `
-        <div class="px-3 py-2 border border-blue-200/50 rounded shadow-sm flex flex-col items-center justify-center text-center select-none" style="width: 135px; height: 56px; bg-color: #deebf7 !important; background-color: #deebf7 !important; background: #deebf7 !important;">
-          <span class="text-[10px] font-black tracking-widest text-blue-900 uppercase whitespace-nowrap">
-            BIỂN ĐÔNG
-          </span>
-          <span class="text-[8px] font-black tracking-wider text-blue-800 uppercase whitespace-nowrap mt-0.5">
-            (VIỆT NAM)
-          </span>
-        </div>
-      `,
-      className: 'custom-bien-dong-overlay',
-      iconSize: [135, 56],
-      iconAnchor: [67, 28],
-    });
-    L.marker([18.2, 115.6], { icon: bienDongIcon, interactive: false }).addTo(leafletMap);
 
     mapRef.current = leafletMap;
 
