@@ -319,6 +319,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           await setDoc(initDocRef, { seeded: true, seededAt: new Date().toISOString() });
           console.log("Database seeding completed safely!");
         }
+
+        // Ensure Chi bộ Quân sự and its contents are ALWAYS present in the database, even if already seeded
+        try {
+          // Check & seed Category
+          const catDocRef = doc(db, 'categories', 'kgvh-chibo-quan-su');
+          const catSnap = await getDoc(catDocRef);
+          if (!catSnap.exists()) {
+            const qCat = mockCategories.find(c => c.id === 'kgvh-chibo-quan-su');
+            if (qCat) await setDoc(catDocRef, cleanUndefined(qCat));
+          }
+
+          // Check & seed Unit
+          const unitDocRef = doc(db, 'units', 'unit-chi-bo-quan-su');
+          const unitSnap = await getDoc(unitDocRef);
+          if (!unitSnap.exists()) {
+            const qUnit = mockUnits.find(u => u.id === 'unit-chi-bo-quan-su');
+            if (qUnit) await setDoc(unitDocRef, cleanUndefined(qUnit));
+          }
+
+          // Check & seed Contents
+          const militaryContents = mockContents.filter(c => c.unitId === 'unit-chi-bo-quan-su');
+          for (const item of militaryContents) {
+            const contentDocRef = doc(db, 'contents', item.id);
+            const contentSnap = await getDoc(contentDocRef);
+            if (!contentSnap.exists()) {
+              await setDoc(contentDocRef, cleanUndefined(item));
+            }
+          }
+        } catch (e) {
+          console.error("Error ensuring Chi bộ Quân sự data in Firestore:", e);
+        }
       } catch (err) {
         console.error("Error seeding database safely:", err);
       }

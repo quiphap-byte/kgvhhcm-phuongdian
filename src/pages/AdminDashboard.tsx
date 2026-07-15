@@ -12,7 +12,7 @@ import {
   Settings, History, Search, Edit2, Archive, CheckCircle, 
   Eye, Star, ArrowLeft, Save, Trash2, HelpCircle,
   FolderOpen, Layout, ChevronRight, ChevronDown, Layers,
-  ArrowUp, ArrowDown, Compass, MapPin, Clock
+  ArrowUp, ArrowDown, Compass, MapPin, Clock, Image, X
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -110,6 +110,7 @@ export const AdminDashboard: React.FC = () => {
   const [unitThumbField, setUnitThumbField] = useState('');
   const [unitOrderField, setUnitOrderField] = useState('1');
   const [unitStatusField, setUnitStatusField] = useState<'Hiển thị' | 'Ẩn'>('Hiển thị');
+  const [unitGalleryField, setUnitGalleryField] = useState<string[]>([]);
 
   // --- NEW: Timeline Event Form States ---
   const [isEditingTimelineEvent, setIsEditingTimelineEvent] = useState(false);
@@ -251,6 +252,7 @@ export const AdminDashboard: React.FC = () => {
     setUnitThumbField(u.thumbnail);
     setUnitOrderField(u.displayOrder.toString());
     setUnitStatusField(u.status);
+    setUnitGalleryField(u.gallery || []);
   };
 
   const handleCreateUnitClick = () => {
@@ -267,6 +269,7 @@ export const AdminDashboard: React.FC = () => {
     setUnitThumbField('');
     setUnitOrderField((units.length + 1).toString());
     setUnitStatusField('Hiển thị');
+    setUnitGalleryField([]);
   };
 
   const handleUnitSave = (e: React.FormEvent) => {
@@ -286,7 +289,7 @@ export const AdminDashboard: React.FC = () => {
       email: unitEmailField,
       representative: unitRepField,
       thumbnail: unitThumbField || 'https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?auto=format&fit=crop&w=400&q=85',
-      gallery: [],
+      gallery: unitGalleryField,
       displayOrder: parseInt(unitOrderField) || 1,
       status: unitStatusField
     };
@@ -1478,6 +1481,77 @@ export const AdminDashboard: React.FC = () => {
                 onChange={(e) => setUnitThumbField(e.target.value)}
                 className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 p-2.5 rounded"
               />
+            </div>
+
+            <div className="flex flex-col gap-2 md:col-span-3 border border-neutral-200 rounded-xl p-4 bg-neutral-50/50">
+              <label className="text-[10px] uppercase font-black text-neutral-500 flex items-center gap-1.5 font-bold">
+                <Image size={12} className="text-amber-500" />
+                <span>Album hình ảnh trưng bày không gian văn hóa thực tế (Gallery)</span>
+              </label>
+              <p className="text-[11px] text-neutral-400 -mt-1 font-medium">
+                Thêm danh sách các liên kết hình ảnh ghi lại hoạt động, tủ sách, tủ thờ hoặc phòng truyền thống thực tế tại đơn vị.
+              </p>
+              
+              {unitGalleryField.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-2">
+                  {unitGalleryField.map((imgUrl, index) => (
+                    <div key={index} className="aspect-video relative rounded-lg overflow-hidden border border-neutral-200 group bg-neutral-100 shadow-sm">
+                      <img src={imgUrl} alt={`Ảnh ${index + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUnitGalleryField(unitGalleryField.filter((_, i) => i !== index));
+                        }}
+                        className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-md transition-opacity duration-200 opacity-0 group-hover:opacity-100"
+                        title="Xóa ảnh này"
+                      >
+                        <X size={10} />
+                      </button>
+                      <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white font-mono">
+                        Ảnh {index + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-xs text-neutral-400 font-bold border border-dashed border-neutral-200 rounded-lg my-1 bg-white">
+                  Chưa có hình ảnh thực tế nào. Hãy thêm ảnh bên dưới!
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  id="new-gallery-image-url"
+                  placeholder="Dán liên kết hình ảnh vào đây (ví dụ: https://images.unsplash.com/...)"
+                  className="w-full text-xs font-semibold bg-white border border-neutral-300 focus:border-red-750 p-2 rounded outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const target = e.currentTarget;
+                      const val = target.value.trim();
+                      if (val) {
+                        setUnitGalleryField([...unitGalleryField, val]);
+                        target.value = '';
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('new-gallery-image-url') as HTMLInputElement;
+                    const val = input?.value.trim();
+                    if (val) {
+                      setUnitGalleryField([...unitGalleryField, val]);
+                      input.value = '';
+                    }
+                  }}
+                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-900 text-white font-bold text-xs rounded transition-colors shrink-0"
+                >
+                  Thêm ảnh
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1 md:col-span-3">

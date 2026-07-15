@@ -51,6 +51,15 @@ export const mockCategories: Category[] = [
     displayOrder: 4,
     status: 'Hiển thị'
   },
+  {
+    id: 'kgvh-chibo-quan-su',
+    name: 'Chi bộ Quân sự Phường Dĩ An',
+    slug: 'chi-bo-quan-su-phuong-di-an',
+    description: 'Không gian Văn hóa Hồ Chí Minh tại Ban Chỉ huy Quân sự Phường Dĩ An, gắn kết lòng yêu nước và trách nhiệm của lực lượng vũ trang.',
+    parentId: 'kgvh-dian',
+    displayOrder: 5,
+    status: 'Hiển thị'
+  },
 
   // 2. Quê hương và tuổi thơ Bác Hồ
   {
@@ -340,6 +349,30 @@ export const mockUnits: Unit[] = [
     status: 'Hiển thị',
     createdAt: '2026-02-15T08:00:00Z',
     updatedAt: '2026-07-05T10:15:00Z'
+  },
+  {
+    id: 'unit-chi-bo-quan-su',
+    name: 'Chi bộ Quân sự Phường Dĩ An',
+    slug: 'chi-bo-quan-su-phuong-di-an',
+    type: 'Lực lượng vũ trang',
+    description: 'Không gian văn hóa Hồ Chí Minh tại Chi bộ Quân sự Phường Dĩ An là mô hình tiêu biểu kết hợp giữa công tác xây dựng Đảng và giáo dục truyền thống cách mạng, tinh thần yêu nước cho lực lượng vũ trang địa phương. Không gian được bài bài trí trang nghiêm, ấm cúng với mô hình Nhà sàn Bác Hồ bằng tăm tre tự chế, tủ sách tư liệu lịch sử, kỷ vật bộ quân phục Kali, bản đồ chủ quyền biển đảo Hoàng Sa, Trường Sa cùng hệ thống chuyên đề thi đua sinh động.',
+    address: 'Văn phòng Ban Chỉ huy Quân sự Phường Dĩ An, Số 16, Đường Nguyễn Du, Khu phố Trung Toàn, Phường Dĩ An, TP. Dĩ An, Tỉnh Bình Dương',
+    phone: '0274.3752145',
+    email: 'chiboquansu.dian@binhduong.gov.vn',
+    representative: 'Đồng chí Nguyễn Văn Minh - Bí thư Chi bộ',
+    thumbnail: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?auto=format&fit=crop&w=800&q=80'
+    ],
+    latitude: 10.9168,
+    longitude: 106.7865,
+    displayOrder: 4,
+    status: 'Hiển thị',
+    createdAt: '2026-07-15T08:00:00Z',
+    updatedAt: '2026-07-15T09:30:00Z'
   }
 ];
 
@@ -654,6 +687,82 @@ Mô hình đã mang lại hiệu quả to lớn trong việc nâng cao ý thức
     publishedAt: '2026-03-15T08:00:00Z',
     createdAt: '2026-03-15T08:00:00Z',
     updatedAt: '2026-07-05T10:30:00Z'
+  },
+  {
+    id: 'cnt-kgvh-quan-su-nha-san',
+    title: 'Kỷ vật Mô hình Nhà sàn Bác Hồ bằng tăm tre tự chế',
+    slug: 'mo-hinh-nha-san-bac-ho-tam-tre-tu-che',
+    summary: 'Một tác phẩm mô hình Nhà sàn Bác Hồ được làm thủ công tỉ mỉ bằng tăm tre và gỗ của các cán bộ, chiến sĩ Chi bộ Quân sự Phường Dĩ An kính dâng lên Bác.',
+    body: `Mô hình Nhà sàn Bác Hồ làm bằng tăm tre trưng bày trang trọng tại tủ kính Không gian văn hóa Hồ Chí Minh của Chi bộ Quân sự Phường Dĩ An là một kỷ vật vô cùng đặc biệt. Tác phẩm này được làm thủ công hoàn toàn từ hàng ngàn cây tăm tre, do chính tay các cán bộ, chiến sĩ dân quân tự vệ và đảng viên trong chi bộ cùng nhau thiết kế và hoàn thiện trong nhiều tuần liền.\n\nTừng chi tiết nhỏ của ngôi nhà sàn lịch sử - nơi Bác sống và làm việc tại Phủ Chủ tịch - như bậc cầu thang, lan can, cửa sổ, cho đến mái ngói tranh và cột trụ gỗ đều được mô phỏng hết sức tỉ mỉ và sinh động. Việc thực hiện mô hình không chỉ thể hiện sự khéo léo, tinh thần sáng tạo khắc phục khó khăn của người chiến sĩ, mà trên hết là tấm lòng kính yêu vô hạn, lòng biết ơn sâu sắc đối với Người.\n\nMô hình hiện được trưng bày ở tầng trên cùng của tủ kính trưng bày kỷ vật, bên cạnh chân dung của Bác và các danh hiệu thi đua cao quý của lực lượng vũ trang phường, trở thành điểm nhấn trực quan xúc động thu hút mọi khách quý đến tham quan học tập.`,
+    contentType: 'Hình ảnh',
+    categoryId: 'kgvh-chibo-quan-su',
+    unitId: 'unit-chi-bo-quan-su',
+    author: 'Cán bộ Chiến sĩ Chi bộ Quân sự',
+    thumbnail: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?auto=format&fit=crop&w=800&q=80',
+    sourceName: 'Ban Chỉ huy Quân sự Phường Dĩ An',
+    keywords: ['Mô hình nhà sàn', 'Tăm tre', 'Chi bộ Quân sự', 'Kỷ vật Bác Hồ'],
+    status: 'Đã xuất bản',
+    viewCount: 450,
+    publishedAt: '2026-07-15T08:00:00Z',
+    createdAt: '2026-07-15T08:00:00Z',
+    updatedAt: '2026-07-15T08:00:00Z'
+  },
+  {
+    id: 'cnt-kgvh-quan-su-quan-phuc',
+    title: 'Bộ quân phục Kali – Kỷ vật thiêng liêng về tác phong giản dị của Bác',
+    slug: 'bo-quan-phuc-kali-ky-vat-tac-phong-gian-di-bac-ho',
+    summary: 'Trưng bày bộ quân phục kaki (kali) mộc mạc và chiếc mũ cối tại tủ kính di tích, nhắc nhở mỗi người chiến sĩ về nếp sống cần kiệm, giản dị của Chủ tịch Hồ Chí Minh.',
+    body: `Tại trung tâm tủ kính Không gian văn hóa Hồ Chí Minh của Chi bộ Quân sự Phường Dĩ An, bộ quân phục Khaki (thường gọi là quân phục Kali) màu vàng đất được xếp nếp gọn gàng, trang nghiêm cùng với chiếc mũ cối quen thuộc. Đây là bộ trang phục mô phỏng lại bộ quân phục mộc mạc mà sinh thời Chủ tịch Hồ Chí Minh thường mặc trong các sự kiện quân sự, những buổi làm việc trực tiếp với chiến sĩ, hay khi ra trận chiến dịch.\n\nĐối với lực lượng vũ trang Phường Dĩ An, bộ quân phục này là biểu tượng thiêng liêng về nếp sống giản dị, cần kiệm, liêm chính của vị Cha già dân tộc. Người không màng nhung lụa, luôn chọn những bộ quần áo vải thô, đôi dép cao su giản dị đi khắp mọi miền Tổ quốc.\n\nMỗi khi đứng trước tủ kính trưng bày bộ quân phục, cán bộ, chiến sĩ và lực lượng dân quân tự vệ lại tự nhắc nhở bản thân về trách nhiệm tu dưỡng tác phong kỷ luật, giữ gìn phẩm chất "Bộ đội Cụ Hồ", vượt qua mọi cám dỗ, hoàn thành xuất sắc nhiệm vụ bảo vệ an ninh trật tự, quốc phòng tại địa phương.`,
+    contentType: 'Hình ảnh',
+    categoryId: 'kgvh-chibo-quan-su',
+    unitId: 'unit-chi-bo-quan-su',
+    author: 'Biên tập viên Chi bộ Quân sự',
+    thumbnail: 'https://images.unsplash.com/photo-1599707367072-cd6ada2bc375?auto=format&fit=crop&w=800&q=80',
+    sourceName: 'Lịch sử Lực lượng Vũ trang Phường Dĩ An',
+    keywords: ['Bộ quân phục', 'Kali', 'Mũ cối', 'Kỷ vật', 'Bộ đội Cụ Hồ'],
+    status: 'Đã xuất bản',
+    viewCount: 380,
+    publishedAt: '2026-07-15T08:15:00Z',
+    createdAt: '2026-07-15T08:15:00Z',
+    updatedAt: '2026-07-15T08:15:00Z'
+  },
+  {
+    id: 'cnt-kgvh-quan-su-ban-do',
+    title: 'Bản đồ "Tôi yêu Việt Nam" – Giáo dục chủ quyền biển đảo Tổ quốc',
+    slug: 'ban-do-toi-yeu-viet-nam-chu-quyen-bien-dao-hoang-sa-truong-sa',
+    summary: 'Giới thiệu bảng chuyên đề "Bác Hồ với biển đảo quê hương" và mô hình bản đồ Việt Nam khẳng định vững chắc chủ quyền Hoàng Sa, Trường Sa.',
+    body: `Mô hình Bản đồ Việt Nam mang tên "Tôi yêu Việt Nam" cùng bảng thông tin chuyên đề "Bác Hồ với Biển đảo quê hương" đặt tại góc phải của Không gian văn hóa là tư liệu giáo dục trực quan vô cùng sinh động của Chi bộ Quân sự.\n\nBảng trưng bày tập hợp những bức ảnh tư liệu quý giá ghi lại những lần Bác Hồ đến thăm các chiến sĩ hải quân, các vùng biển đảo của Tổ quốc và lời căn dặn bất hủ của Người: "Ngày trước ta chỉ có đêm và rừng. Ngày nay ta có ngày, có trời, có biển. Bờ biển ta dài, tươi đẹp, ta phải biết giữ gìn lấy nó". Bản đồ nước Việt Nam hình chữ S với hai quần đảo Hoàng Sa và Trường Sa được vẽ trang trọng, khẳng định đanh thép chủ quyền thiêng liêng bất khả xâm phạm của Tổ quốc.\n\nThông qua không gian học tập trực quan này, Chi bộ Quân sự thường xuyên lồng ghép nội dung tuyên truyền về Luật Biển Việt Nam, giáo dục ý thức bảo vệ vùng trời, vùng biển đảo quê hương cho thế hệ trẻ, đoàn viên và lực lượng dân quân tại các buổi sinh hoạt chính trị định kỳ.`,
+    contentType: 'Hình ảnh',
+    categoryId: 'kgvh-chibo-quan-su',
+    unitId: 'unit-chi-bo-quan-su',
+    author: 'Ban Chỉ huy Quân sự Phường Dĩ An',
+    thumbnail: 'https://images.unsplash.com/photo-1610450949065-2f9d1b672728?auto=format&fit=crop&w=800&q=80',
+    sourceName: 'Tài liệu Tuyên truyền Biển đảo - Bộ Tư lệnh Hải quân',
+    keywords: ['Bản đồ Việt Nam', 'Hoàng Sa', 'Trường Sa', 'Chủ quyền biển đảo', 'Tôi yêu Việt Nam'],
+    status: 'Đã xuất bản',
+    viewCount: 512,
+    publishedAt: '2026-07-15T08:30:00Z',
+    createdAt: '2026-07-15T08:30:00Z',
+    updatedAt: '2026-07-15T08:30:00Z'
+  },
+  {
+    id: 'cnt-kgvh-quan-su-tu-sach',
+    title: 'Tủ sách tư liệu học tập và làm theo tấm gương đạo đức Hồ Chí Minh',
+    slug: 'tu-sach-tu-lieu-hoc-tap-lam-theo-loi-bac-chi-bo-quan-su',
+    summary: 'Tủ sách chuyên đề về Bác Hồ và lịch sử Đảng Cộng sản Việt Nam phục vụ việc tra cứu, nâng cao nhận thức chính trị cho cán bộ, chiến sĩ.',
+    body: `Nằm trong hệ thống Không gian văn hóa Hồ Chí Minh, Tủ sách tư liệu của Chi bộ Quân sự Phường Dĩ An được trang bị gần 100 đầu sách giá trị, bao gồm các tác phẩm kinh điển của Chủ tịch Hồ Chí Minh như "Đường Kách mệnh", "Di chúc", "Cần Kiệm Liêm Chính", cùng nhiều tựa sách nghiên cứu lịch sử Đảng, lịch sử Quân đội Nhân dân Việt Nam anh hùng và các tác phẩm chính trị quan trọng khác.\n\nTủ sách được sắp xếp khoa học ngay phía dưới kệ trưng bày kỷ vật để cán bộ, chiến sĩ có thể dễ dàng tiếp cận học tập. Đây không chỉ là nơi lưu giữ sách, mà còn là phương tiện phục vụ tích cực cho các đợt sinh hoạt chuyên đề, các cuộc thi tìm hiểu lịch sử, bồi dưỡng nhận thức lý luận cho các đối tượng cảm tình Đảng và chiến sĩ dân quân mới nạp ngũ.\n\nPhong trào đọc sách, nghiên cứu tài liệu về Bác đã trở thành một nền nếp sinh hoạt văn hóa thường xuyên tại chi bộ, góp phần xây dựng bản lĩnh chính trị kiên cường, ý chí chiến đấu sắt đá và tình yêu quê hương đất nước sâu đậm cho lực lượng vũ trang phường Dĩ An.`,
+    contentType: 'Hình ảnh',
+    categoryId: 'kgvh-chibo-quan-su',
+    unitId: 'unit-chi-bo-quan-su',
+    author: 'Ủy viên Tuyên giáo Chi bộ',
+    thumbnail: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=800&q=80',
+    sourceName: 'Nhà xuất bản Quân đội Nhân dân',
+    keywords: ['Tủ sách Bác Hồ', 'Sách chính trị', 'Tra cứu tư liệu', 'Lực lượng vũ trang'],
+    status: 'Đã xuất bản',
+    viewCount: 410,
+    publishedAt: '2026-07-15T08:45:00Z',
+    createdAt: '2026-07-15T08:45:00Z',
+    updatedAt: '2026-07-15T08:45:00Z'
   }
 ];
 
