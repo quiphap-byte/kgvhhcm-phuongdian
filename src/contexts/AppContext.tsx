@@ -347,6 +347,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               await setDoc(contentDocRef, cleanUndefined(item));
             }
           }
+
+          // Auto-upgrade empty galleries for ALL units to match mock data
+          try {
+            const unitsCol = collection(db, 'units');
+            const unitsSnap = await getDocs(unitsCol);
+            for (const docSnap of unitsSnap.docs) {
+              const currentData = docSnap.data();
+              const mockUnit = mockUnits.find(u => u.id === docSnap.id);
+              if (mockUnit) {
+                const hasNoGallery = !currentData.gallery || currentData.gallery.length === 0;
+                const mockHasGallery = mockUnit.gallery && mockUnit.gallery.length > 0;
+                if (hasNoGallery && mockHasGallery) {
+                  console.log(`Auto-upgrading unit ${docSnap.id} gallery from mock data...`);
+                  await updateDoc(docSnap.ref, {
+                    gallery: mockUnit.gallery,
+                    updatedAt: new Date().toISOString()
+                  });
+                }
+              }
+            }
+          } catch (upgradeErr) {
+            console.error("Error auto-upgrading unit galleries:", upgradeErr);
+          }
         } catch (e) {
           console.error("Error ensuring Chi bộ Quân sự data in Firestore:", e);
         }

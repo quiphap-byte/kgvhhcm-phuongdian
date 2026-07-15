@@ -52,6 +52,11 @@ export const AdminDashboard: React.FC = () => {
   } = useApp();
 
   const isAdmin = currentUser?.role === 'Administrator' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Quản trị viên';
+  const isUnitEditor = currentUser?.role === 'Biên tập viên đơn vị';
+  const canManageUnits = isAdmin || isUnitEditor;
+  const visibleUnits = isAdmin 
+    ? units 
+    : units.filter(u => u.id === currentUser?.unitId);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'contents' | 'categories' | 'units' | 'homepage' | 'settings' | 'logs' | 'journey' | 'timeline' | 'works'>('contents');
@@ -72,6 +77,7 @@ export const AdminDashboard: React.FC = () => {
   const [formSummary, setFormSummary] = useState('');
   const [formBody, setFormBody] = useState('');
   const [formThumbnail, setFormThumbnail] = useState('');
+  const [formGallery, setFormGallery] = useState<string[]>([]);
   const [formSourceName, setFormSourceName] = useState('');
   const [formSourceUrl, setFormSourceUrl] = useState('');
   const [formDocumentTitle, setFormDocumentTitle] = useState('');
@@ -567,6 +573,7 @@ export const AdminDashboard: React.FC = () => {
     setFormKeywords('');
     setFormStatus('Đã xuất bản');
     setFormFeatured(false);
+    setFormGallery([]);
   };
 
   const handleEditClick = (item: Content) => {
@@ -581,6 +588,7 @@ export const AdminDashboard: React.FC = () => {
     setFormSummary(item.summary);
     setFormBody(item.body);
     setFormThumbnail(item.thumbnail || '');
+    setFormGallery(item.gallery || []);
     setFormSourceName(item.sourceName || '');
     setFormSourceUrl(item.sourceUrl || '');
     setFormDocumentTitle(item.documentTitle || '');
@@ -611,6 +619,7 @@ export const AdminDashboard: React.FC = () => {
       summary: formSummary,
       body: formBody,
       thumbnail: formThumbnail || undefined,
+      gallery: formGallery,
       sourceName: formSourceName,
       sourceUrl: formSourceUrl || undefined,
       documentTitle: formDocumentTitle || undefined,
@@ -832,43 +841,45 @@ export const AdminDashboard: React.FC = () => {
           </button>
 
           {isAdmin && (
-            <>
-              <button
-                onClick={() => setActiveTab('categories')}
-                className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
-                  activeTab === 'categories'
-                    ? 'bg-red-800 text-white shadow'
-                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
-                }`}
-              >
-                <FolderOpen size={14} />
-                <span>Thư mục & Chuyên đề</span>
-              </button>
+            <button
+              onClick={() => setActiveTab('categories')}
+              className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
+                activeTab === 'categories'
+                  ? 'bg-red-800 text-white shadow'
+                  : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+              }`}
+            >
+              <FolderOpen size={14} />
+              <span>Thư mục & Chuyên đề</span>
+            </button>
+          )}
 
-              <button
-                onClick={() => setActiveTab('units')}
-                className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
-                  activeTab === 'units'
-                    ? 'bg-red-800 text-white shadow'
-                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
-                }`}
-              >
-                <Layers size={14} />
-                <span>Chi bộ & Đơn vị cơ sở</span>
-              </button>
+          {canManageUnits && (
+            <button
+              onClick={() => setActiveTab('units')}
+              className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
+                activeTab === 'units'
+                  ? 'bg-red-800 text-white shadow'
+                  : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+              }`}
+            >
+              <Layers size={14} />
+              <span>Chi bộ & Đơn vị cơ sở</span>
+            </button>
+          )}
 
-              <button
-                onClick={() => setActiveTab('homepage')}
-                className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
-                  activeTab === 'homepage'
-                    ? 'bg-red-800 text-white shadow'
-                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
-                }`}
-              >
-                <Layout size={14} />
-                <span>Thành phần Trang chủ</span>
-              </button>
-            </>
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('homepage')}
+              className={`px-4 py-2 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${
+                activeTab === 'homepage'
+                  ? 'bg-red-800 text-white shadow'
+                  : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+              }`}
+            >
+              <Layout size={14} />
+              <span>Thành phần Trang chủ</span>
+            </button>
           )}
 
           {isAdmin && (
@@ -1029,6 +1040,77 @@ export const AdminDashboard: React.FC = () => {
                 onChange={(e) => setFormThumbnail(e.target.value)}
                 className="w-full text-xs font-semibold bg-neutral-50 focus:bg-white border border-neutral-300 focus:border-red-700 outline-none p-2.5 rounded transition-all"
               />
+            </div>
+
+            <div className="md:col-span-4 flex flex-col gap-2 border border-neutral-200 rounded-xl p-4 bg-neutral-50/50 mt-1">
+              <label className="text-[10px] uppercase font-black text-neutral-500 flex items-center gap-1.5 font-bold">
+                <Image size={12} className="text-amber-500" />
+                <span>Album hình ảnh trưng bày đính kèm tư liệu / bài viết (Gallery)</span>
+              </label>
+              <p className="text-[11px] text-neutral-400 -mt-1 font-medium">
+                Thêm danh sách các liên kết hình ảnh liên quan đến bài viết này để làm thư viện ảnh đi kèm.
+              </p>
+              
+              {formGallery.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-2">
+                  {formGallery.map((imgUrl, index) => (
+                    <div key={index} className="aspect-video relative rounded-lg overflow-hidden border border-neutral-200 group bg-neutral-100 shadow-sm">
+                      <img src={imgUrl} alt={`Ảnh ${index + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormGallery(formGallery.filter((_, i) => i !== index));
+                        }}
+                        className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-md transition-opacity duration-200 opacity-0 group-hover:opacity-100"
+                        title="Xóa ảnh này"
+                      >
+                        <X size={10} />
+                      </button>
+                      <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white font-mono">
+                        Ảnh {index + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-xs text-neutral-400 font-bold border border-dashed border-neutral-200 rounded-lg my-1 bg-white">
+                  Chưa có hình ảnh nào được thêm cho bài viết này.
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  id="new-content-gallery-image-url"
+                  placeholder="Dán liên kết hình ảnh vào đây (ví dụ: https://images.unsplash.com/...)"
+                  className="w-full text-xs font-semibold bg-white border border-neutral-300 focus:border-red-750 p-2 rounded outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const target = e.currentTarget;
+                      const val = target.value.trim();
+                      if (val) {
+                        setFormGallery([...formGallery, val]);
+                        target.value = '';
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('new-content-gallery-image-url') as HTMLInputElement;
+                    const val = input?.value.trim();
+                    if (val) {
+                      setFormGallery([...formGallery, val]);
+                      input.value = '';
+                    }
+                  }}
+                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-900 text-white font-bold text-xs rounded transition-colors shrink-0"
+                >
+                  Thêm ảnh
+                </button>
+              </div>
             </div>
 
           </div>
@@ -2291,13 +2373,13 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {/* TAB: Unit Management */}
-          {activeTab === 'units' && isAdmin && (
+          {activeTab === 'units' && canManageUnits && (
             <div className="flex flex-col">
               <div className="p-4 border-b border-neutral-150 bg-neutral-50/50 flex justify-between items-center">
                 <span className="text-xs text-neutral-400 font-bold uppercase">Danh sách chi bộ và các đơn vị cơ sở</span>
-                <span className="text-xs font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-100">{units.length} đơn vị</span>
+                <span className="text-xs font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-100">{visibleUnits.length} đơn vị</span>
               </div>
-
+ 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -2312,7 +2394,7 @@ export const AdminDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-150 text-neutral-600 font-semibold">
-                    {units.map((u) => (
+                    {visibleUnits.map((u) => (
                       <tr key={u.id} className="hover:bg-neutral-50/50 transition-colors">
                         <td className="p-4 text-neutral-950 font-black">
                           {u.name}
@@ -2345,17 +2427,19 @@ export const AdminDashboard: React.FC = () => {
                             >
                               <Edit2 size={13} />
                             </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Bạn có chắc chắn muốn xóa đơn vị "${u.name}"?`)) {
-                                  deleteUnit(u.id);
-                                }
-                              }}
-                              className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded"
-                              title="Xóa đơn vị"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Bạn có chắc chắn muốn xóa đơn vị "${u.name}"?`)) {
+                                    deleteUnit(u.id);
+                                  }
+                                }}
+                                className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded"
+                                title="Xóa đơn vị"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
