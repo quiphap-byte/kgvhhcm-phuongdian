@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { ContentCard } from '../components/ContentCard';
 import { 
   ChevronRight, MapPin, Phone, Mail, User, Calendar, 
-  Building2, Image, FileText, Compass, Sparkles 
+  Building2, Image, FileText, Compass, Sparkles, X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const UnitDetail: React.FC = () => {
   const { 
@@ -19,6 +20,8 @@ export const UnitDetail: React.FC = () => {
     navigateTo, 
     getAdjustedTextClass 
   } = useApp();
+
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const unit = units.find(u => u.id === activeUnitId);
 
@@ -120,7 +123,8 @@ export const UnitDetail: React.FC = () => {
             {unit.gallery.map((imgUrl, idx) => (
               <div 
                 key={idx}
-                className="aspect-video rounded-xl overflow-hidden bg-neutral-100 border border-neutral-200 shadow-sm relative group"
+                onClick={() => setLightboxImage(imgUrl)}
+                className="aspect-video rounded-xl overflow-hidden bg-neutral-100 border border-neutral-200 shadow-sm relative group cursor-zoom-in"
               >
                 <img 
                   src={imgUrl} 
@@ -168,6 +172,42 @@ export const UnitDetail: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Lightbox Image Modal */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLightboxImage(null)}
+              className="absolute inset-0 bg-neutral-950/90 backdrop-blur-sm cursor-zoom-out"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="relative max-w-5xl max-h-[90vh] z-10 flex flex-col items-center"
+            >
+              <button 
+                onClick={() => setLightboxImage(null)}
+                className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none"
+                aria-label="Đóng ảnh"
+              >
+                <X size={20} />
+              </button>
+              <img 
+                src={lightboxImage} 
+                alt="Hình ảnh không gian thực tế phóng to" 
+                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-white/10"
+                referrerPolicy="no-referrer"
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

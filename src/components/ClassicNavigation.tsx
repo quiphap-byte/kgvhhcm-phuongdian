@@ -27,6 +27,7 @@ export const ClassicNavigation: React.FC = () => {
       path: 'chuyen-muc/khong-gian-van-hoa-di-an',
       subItems: [
         { label: 'Cơ quan hành chính', path: 'chuyen-muc/co-quan-hanh-chinh' },
+        { label: 'Chi bộ Quân sự', path: 'chuyen-muc/chi-bo-quan-su-phuong-di-an' },
         { label: 'KP Nhị Đồng 1', path: 'chuyen-muc/chi-bo-khu-pho-nhi-dong-1' },
         { label: 'THCS Lý Thường Kiệt', path: 'chuyen-muc/chi-bo-truong-thcs-ly-thuong-kiet' },
         { label: 'Trạm Y tế Phường', path: 'chuyen-muc/chi-bo-tram-y-te-phuong-di-an' }
